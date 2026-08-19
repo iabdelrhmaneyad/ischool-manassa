@@ -2394,7 +2394,8 @@ function teacherDashboard(){
   const subjLabel = S.settings.lang==='ar'?SUBJECTS_AR[TEACHER_SUBJECT]:TEACHER_SUBJECT;
   const attAvg = Math.round(st.reduce((a,s)=>a+s.att,0)/st.length);
   const subjAvg = Math.round(st.reduce((a,s)=>a+subjScore(s),0)/st.length);
-  
+  const passRate = Math.round(st.filter(s=>subjScore(s)>=60).length/st.length*100);
+
   const teacherHeroCockpit = `
   <!-- Teacher Hero Cockpit (iSchool Branding & Smart Tools) -->
   <div class="card highlight mb" style="border-inline-start:6px solid var(--ischool-blue);padding:1.1rem 1.35rem">
@@ -2428,9 +2429,9 @@ function teacherDashboard(){
         <span class="tiny muted">${TR('Active assessments to date','للتقييمات المستحقة فقط')}</span>
       </div>
       <div class="card stat" style="padding:.75rem .9rem;border-top:4px solid var(--ischool-gold)">
-        <span class="eyebrow">${TR('Comprehension Level','مستوى الاستيعاب')}</span>
-        <span class="num" style="color:#854D0E">88%</span>
-        <span class="tiny muted">${TR('Passed threshold (≥60%)','نسبة الاجتياز الإجمالية')}</span>
+        <span class="eyebrow">${TR('Pass Rate','نسبة الاجتياز')}</span>
+        <span class="num" style="color:#854D0E">${passRate}%</span>
+        <span class="tiny muted">${TR('Students at or above 60%','الطلاب عند 60% أو أعلى')}</span>
       </div>
     </div>
   </div>`;
@@ -2583,7 +2584,7 @@ function teacherGradebook(){
   if(S.gradeExam && (S.gradeExam.type==='midterm' || S.gradeExam.type==='final')){ S.gradeExam.type='monthly'; }
   const locked = !!S.gradesSubmitted && !S.gradeUnlockReason; // marks lock after submit; correction needs a logged reason
   return `
-  ${taskBack()}${liveTelemetry||''}
+  ${taskBack()}
   <div class="page-head"><div>
     <p class="eyebrow">${esc(nodeName(cls))} · ${subjLabel}</p><h1>${TR('Exam marks','درجات الامتحان')}</h1>
   </div></div>
@@ -2847,6 +2848,10 @@ function dayHistoryFooter(){
 
 function teacherAssessments(){
   const cls=teacherClass(), st=cls.students;
+  const scores0=st.map(s=>subjScore(s));
+  const mean0=Math.round(scores0.reduce((a,b)=>a+b,0)/scores0.length);
+  const pass0=Math.round(scores0.filter(v=>v>=60).length/scores0.length*100);
+  const high0=scores0.filter(v=>v>=85).length, mid0=scores0.filter(v=>v>=60&&v<85).length, low0=scores0.filter(v=>v<60).length;
   const liveTelemetry = `
   <!-- Live In-Grading Dynamic Telemetry & Immediate Pedagogical Feedback -->
   <div class="card highlight mb" id="telemetry-box" style="border-inline-start:6px solid var(--ischool-blue);padding:1.2rem 1.4rem;box-shadow:var(--shadow)">
@@ -2855,15 +2860,14 @@ function teacherAssessments(){
         <div style="background:var(--paper);padding:.6rem 1rem;border-radius:var(--radius);border:1.5px solid var(--line)">
           <span class="eyebrow" style="margin:0">${TR('Live Class Average','المتوسط الفعلي للفصل (فوري)')}</span>
           <div style="display:flex;align-items:baseline;gap:.4rem">
-            <strong id="live-telemetry-mean" style="font-size:1.85rem;color:var(--ischool-blue);font-weight:900;line-height:1">${subjScore(st[0])}%</strong>
-            <span class="tag ok" id="live-telemetry-delta" style="font-size:.72rem">▲ +2.4%</span>
+            <strong id="live-telemetry-mean" style="font-size:1.85rem;color:var(--ischool-blue);font-weight:900;line-height:1">${mean0}%</strong>
           </div>
         </div>
 
         <div style="background:var(--paper);padding:.6rem 1rem;border-radius:var(--radius);border:1.5px solid var(--line)">
           <span class="eyebrow" style="margin:0">${TR('Comprehension Rate','معدل الاستيعاب (≥٦٠%)')}</span>
           <div style="display:flex;align-items:baseline;gap:.4rem">
-            <strong id="live-telemetry-pass" style="font-size:1.85rem;color:var(--ok-700);font-weight:900;line-height:1">88%</strong>
+            <strong id="live-telemetry-pass" style="font-size:1.85rem;color:var(--ok-700);font-weight:900;line-height:1">${pass0}%</strong>
             <span class="small muted">${TR('Mastered skills','مجتاز للمهارات')}</span>
           </div>
         </div>
@@ -2871,26 +2875,19 @@ function teacherAssessments(){
         <div style="background:var(--paper);padding:.6rem 1rem;border-radius:var(--radius);border:1.5px solid var(--line)">
           <span class="eyebrow" style="margin:0">${TR('Score Distribution','توزيع الدرجات')}</span>
           <div style="display:flex;gap:4px;height:14px;width:120px;border-radius:99px;overflow:hidden;margin-top:.4rem;background:#E2E8F0" id="live-telemetry-dist-bar">
-            <span style="background:var(--ok-700);width:65%" title="${TR('High: 65%','مرتفع: ٦٥%')}"></span>
-            <span style="background:var(--warn-700);width:25%" title="${TR('Mid: 25%','متوسط: ٢٥%')}"></span>
-            <span style="background:var(--risk-700);width:10%" title="${TR('Support needed: 10%','يحتاج دعم: ١٠%')}"></span>
+            <span style="background:var(--ok-700);width:${Math.round(high0/st.length*100)}%" title="${TR('High','مرتفع')}: ${high0}"></span>
+            <span style="background:var(--warn-700);width:${Math.round(mid0/st.length*100)}%" title="${TR('Mid','متوسط')}: ${mid0}"></span>
+            <span style="background:var(--risk-700);width:${Math.round(low0/st.length*100)}%" title="${TR('Support needed','يحتاج دعم')}: ${low0}"></span>
           </div>
-          <span class="tiny muted" id="live-telemetry-dist-label">${TR('Healthy Bell Curve','توزيع طبيعي متوازن')}</span>
+          <span class="tiny muted" id="live-telemetry-dist-label">${pass0>=85?TR('Healthy — most of the class is on track','صحّي — معظم الفصل على المسار الصحيح'):pass0>=60?TR('Mixed — some students need support','متفاوت — بعض الطلاب يحتاجون دعمًا'):TR('Many students need support','عدد كبير من الطلاب يحتاج دعمًا')}</span>
         </div>
-      </div>
-
-      <!-- Quick Action Speed Tools -->
-      <div class="flex center gap-1 wrapw">
-        <button type="button" class="btn sm sec" onclick="applyQuickFill(85)" title="${TR('Fill 85 for empty fields','ملء ٨٥ للدرجات الفارغة')}">${uiIcon('zap', 14)} ${TR("Fill 85% for Blank","ملء سريع ٨٥%")}</button>
-        <button type="button" class="btn sm sec" onclick="applyBonusPoints(5)" title="${TR('Add +5 bonus to all','إضافة +٥ درجات نشاط')}">${uiIcon('plus', 14)} ${TR("+5 Bonus","+٥ بونص")}</button>
-        <button type="button" class="btn sm gold" onclick="saveAndSyncGrades()">${uiIcon("save", 14)} ${TR("Save & Publish","اعتماد وحفظ الدرجات")}</button>
       </div>
     </div>
 
     <!-- Live Pedagogical Feedback Banner -->
     <div id="live-pedagogical-banner" class="flex between center wrapw" style="margin-top:.75rem;padding:.55rem .85rem;background:var(--teal-050);border-radius:var(--radius-sm);border:1px solid rgba(5,111,236,0.2);font-size:.84rem">
       <span style="color:var(--ischool-blue);font-weight:700">
-        💡 <strong id="live-pedagogical-text">${TR('Immediate Feedback: Strong comprehension in Unit 2 — 88% of students mastered core outcomes.','ملاحظة فورية: استيعاب قوي لمهارات الوحدة — ٨٨٪ من الطلاب حققوا نواتج التعلّم المستهدفة.')}</strong>
+        💡 <strong id="live-pedagogical-text">${pass0>=85?TR(`Strong comprehension — ${pass0}% of students have mastered core outcomes.`,`استيعاب قوي — ${arNum(pass0)}٪ من الطلاب حقّقوا نواتج التعلّم المستهدفة.`):pass0>=60?TR(`Good progress — ${pass0}% passing, a brief review could help the rest.`,`تقدّم جيد — ${arNum(pass0)}٪ اجتياز، قد تفيد مراجعة سريعة للباقين.`):TR(`Notice — only ${pass0}% passing so far. Remedial support is recommended.`,`تنبيه — ${arNum(pass0)}٪ فقط اجتياز حتى الآن. يُنصح بتفعيل دعم علاجي.`)}</strong>
       </span>
       <span class="tag info">${TR('Enter key advances to next student','اضغط Enter للانتقال التلقائي')}</span>
     </div>
@@ -2912,6 +2909,7 @@ function teacherAssessments(){
     <p class="small muted" style="margin:.4rem 0 0">${TR('Run this assessment any day inside the window — you choose the lesson period. It saves offline and syncs on its own.','أجرِ هذا التقييم في أيّ يوم داخل النافذة — أنت تختار الحصّة. يُحفظ دون اتصال ويُزامَن تلقائيًّا.')}</p>
     <p class="small" style="margin:.4rem 0 0"><span class="tag info">${TR('Window','نافذة')} ${w2.n} · ${TR('re-test','إعادة اختبار')}</span> ${TR('opens','تفتح')} ${fmtDateOf(w2.open)}.</p>
   </div>
+  ${liveTelemetry}
   ${(()=>{ const mode=S.assessMode||'manual';
     const tabs=`<div class="seg-tabs" role="tablist" aria-label="${TR('How this assessment is graded','كيف يُصحَّح هذا التقييم')}" style="margin-bottom:.6rem">
       <button type="button" role="tab" aria-selected="${mode==='manual'}" data-assess-mode="manual" class="seg-tab ${mode==='manual'?'on':''}"><span aria-hidden="true">✏️</span> ${TR('Enter grades','أدخل الدرجات')}</button>
@@ -7858,21 +7856,13 @@ function drilldownModalOverlay(){
 }
 
 
-  function fillSuggestedPassingGrades(){
-    document.querySelectorAll('.qz-input').forEach(inp => {
-      if(!inp.value || inp.value === '—' || inp.value === '0'){
-        inp.value = '85';
-        inp.dispatchEvent(new Event('input', {bubbles:true}));
-      }
-    });
-    toast(TR('Filled suggested 85% for blank entries — feel free to edit any score','تم ملء ٨٥٪ للدرجات الفارغة — يمكنك تعديل أي درجة بحرية'));
-  }
-  
-
+  // Recomputes the live telemetry card from the marks actually on screen — every
+  // number here is real, not a placeholder. No auto-fill/bonus shortcuts: a mark
+  // is only ever what the teacher typed, matching the platform's anti-inflation rule.
   function recalculateLiveTelemetry(){
     const inputs = [...document.querySelectorAll('.qz-input, .gb-input')];
     if(!inputs.length) return;
-    
+
     let sum = 0, count = 0, passing = 0, high = 0, mid = 0, low = 0;
     inputs.forEach(inp => {
       const val = parseInt(normDigits(inp.value), 10);
@@ -7889,51 +7879,36 @@ function drilldownModalOverlay(){
     if(count > 0){
       const mean = Math.round(sum / count);
       const passRate = Math.round((passing / count) * 100);
-      
+
       const meanEl = document.getElementById('live-telemetry-mean');
       const passEl = document.getElementById('live-telemetry-pass');
       const textEl = document.getElementById('live-pedagogical-text');
-      
+      const distEl = document.getElementById('live-telemetry-dist-bar');
+      const distLbl = document.getElementById('live-telemetry-dist-label');
+
       if(meanEl) meanEl.textContent = mean + '%';
       if(passEl) passEl.textContent = passRate + '%';
-      
+      if(distEl){
+        const spans = distEl.querySelectorAll('span');
+        if(spans[0]) spans[0].style.width = Math.round(high/count*100) + '%';
+        if(spans[1]) spans[1].style.width = Math.round(mid/count*100) + '%';
+        if(spans[2]) spans[2].style.width = Math.round(low/count*100) + '%';
+      }
+      if(distLbl){
+        distLbl.textContent = passRate>=85 ? TR('Healthy — most of the class is on track','صحّي — معظم الفصل على المسار الصحيح')
+          : passRate>=60 ? TR('Mixed — some students need support','متفاوت — بعض الطلاب يحتاجون دعمًا')
+          : TR('Many students need support','عدد كبير من الطلاب يحتاج دعمًا');
+      }
       if(textEl){
         if(passRate >= 85){
-          textEl.textContent = TR('Excellent Performance: ' + passRate + '% comprehension — class is ready for next unit.', 'أداء متميز: ' + passRate + '٪ نسبة الاستيعاب — الفصل جاهز للانتقال للوحدة التالية.');
-        } else if(passRate >= 65){
-          textEl.textContent = TR('Good Performance: ' + passRate + '% passing — recommend brief review for Question 3.', 'أداء جيد: ' + passRate + '٪ نسبة الاجتياز — يُوصى بمراجعة سريعة للمسألة رقم ٣.');
+          textEl.textContent = TR('Strong comprehension — ' + passRate + '% of students have mastered core outcomes.', 'استيعاب قوي — ' + passRate + '٪ من الطلاب حقّقوا نواتج التعلّم المستهدفة.');
+        } else if(passRate >= 60){
+          textEl.textContent = TR('Good progress — ' + passRate + '% passing, a brief review could help the rest.', 'تقدّم جيد — ' + passRate + '٪ اجتياز، قد تفيد مراجعة سريعة للباقين.');
         } else {
-          textEl.textContent = TR('Notice: ' + passRate + '% passing — remedial support recommended before quiz close.', 'تنبيه: ' + passRate + '٪ نسبة الاجتياز — يُنصح بتفعيل جلسة دعم علاجي قبل إغلاق التقييم.');
+          textEl.textContent = TR('Notice — only ' + passRate + '% passing so far. Remedial support is recommended.', 'تنبيه — ' + passRate + '٪ فقط اجتياز حتى الآن. يُنصح بتفعيل دعم علاجي.');
         }
       }
     }
-  }
-
-  function applyQuickFill(score){
-    document.querySelectorAll('.qz-input, .gb-input').forEach(inp => {
-      if(!inp.value || inp.value === '—' || inp.value === '0'){
-        inp.value = score;
-        inp.dispatchEvent(new Event('input', {bubbles:true}));
-      }
-    });
-    recalculateLiveTelemetry();
-    toast(TR('Applied ' + score + '% to blank fields', 'تم ملء ' + score + '٪ للحقول الفارغة'));
-  }
-
-  function applyBonusPoints(bonus){
-    document.querySelectorAll('.qz-input, .gb-input').forEach(inp => {
-      let val = parseInt(normDigits(inp.value), 10);
-      if(!isNaN(val)){
-        inp.value = Math.min(100, val + bonus);
-        inp.dispatchEvent(new Event('input', {bubbles:true}));
-      }
-    });
-    recalculateLiveTelemetry();
-    toast(TR('Added +' + bonus + ' bonus points to all students', 'تمت إضافة +' + bonus + ' درجات نشاط لجميع الطلاب'));
-  }
-
-  function saveAndSyncGrades(){
-    toast(TR('✓ All grades saved and published to student/parent portals', '✓ تم حفظ واعتماد درجات الفصل ونشرها لبوابات الطلاب وأولياء الأمور'));
   }
 
   // Handle Enter key and navigation in grade inputs
