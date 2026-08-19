@@ -1418,3 +1418,36 @@ html.dark .bi-cmd, html.dark .bi-panel, html.dark .bi-kpi, html.dark .tier, html
 html.dark .bi-bell, html.dark .map-canvas, html.dark .map-stu{ background:var(--surface); border-color:var(--line); color:var(--ink); }
 html.dark .bi-tab.on, html.dark .tier.here{ background:var(--surface-2); }
 html.dark .bi-case.open{ background:var(--surface-2); }
+
+
+/* ═══════════════════════════════════════════════════════════
+   SIGN OUT BUTTON — High-visibility red-tinted pill button
+═══════════════════════════════════════════════════════════ */
+.appbar .signout-btn,
+a.signout-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: .35rem !important;
+  min-height: 32px !important;
+  padding: .3rem .75rem !important;
+  font-size: .82rem !important;
+  font-weight: 700 !important;
+  color: #FF8A8A !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  border-radius: 999px !important;
+  text-decoration: none !important;
+  opacity: 1 !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+}
+
+.appbar .signout-btn:hover,
+.appbar .signout-btn:focus-visible,
+a.signout-btn:hover {
+  color: #FFFFFF !important;
+  background: #EF4444 !important;
+  border-color: #EF4444 !important;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45) !important;
+  transform: translateY(-1px);
+}

@@ -1,6 +1,7 @@
 
 /* ---------- Modern Crisp SVG Vector Icon System (Lucide / Heroicons Standard) ---------- */
 const UI_ICONS = {
+  logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
   ministry: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 10v11M19 10v11M9 10v11M14 10v11M12 2L2 7h20L12 2z"/></svg>',
   teacher: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 3 3 5 6 5s6-2 6-5v-5"/></svg>',
   student: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
@@ -1862,7 +1863,7 @@ function appbar(){
         </div>
         <button type="button" class="iconbtn sm" data-toggle="dark" aria-pressed="${S.settings.dark}" style="min-width:32px;min-height:32px" title="${t('dark')}">${S.settings.dark?uiIcon('sun', 16):uiIcon('moon', 16)}</button>
         <button type="button" class="iconbtn sm" data-open-a11y style="min-width:32px;min-height:32px" title="${t('a11y')}">${uiIcon('a11y', 17)}</button>
-        <a href="index.html" class="btn ghost sm signout-btn" style="min-height:32px;font-size:.8rem;padding:0 .5rem">${t('signout')}</a>
+        <a href="index.html" class="btn ghost sm signout-btn">${uiIcon('logout', 14)} ${t('signout')}</a>
       </div>
     </div>
   </header>`;
@@ -4572,22 +4573,42 @@ function mapBubbleLayout(items, box){
   });
 }
 function mapGovAncestor(n){ let cur=n; while(cur && cur.level!=='governorate') cur=cur.parent; return cur; }
+
+/* Continuous colour ramp so the map always shows real variation, instead of
+   discrete buckets that collapse to one flat colour when every region's value
+   happens to sit in the same band (Egypt-wide attendance is 75-83%, for
+   example — a fixed "90%+/80%+/else" bucket set would paint the whole country
+   one colour). Anchored at the SAME thresholds the KPI cards/tags use
+   elsewhere (risk/warn/ok), so a colour here means the same thing it does
+   anywhere else in the dashboard — it just blends smoothly between them. */
+function hexToRgb(hex){ const n=parseInt(hex.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function rgbToHex(rgb){ return '#'+rgb.map(function(v){ return clamp(Math.round(v),0,255).toString(16).padStart(2,'0'); }).join(''); }
+function lerpColor(c1,c2,t){
+  const a=hexToRgb(c1), b=hexToRgb(c2);
+  return rgbToHex([a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]);
+}
+const MAP_RAMP_RISK='#EF4444', MAP_RAMP_WARN='#F59E0B', MAP_RAMP_OK='#10B981';
+function rampColor(v, floor, warnAt, okAt){
+  if(v<=floor) return MAP_RAMP_RISK;
+  if(v>=okAt) return MAP_RAMP_OK;
+  if(v>=warnAt) return lerpColor(MAP_RAMP_WARN, MAP_RAMP_OK, (v-warnAt)/(okAt-warnAt));
+  return lerpColor(MAP_RAMP_RISK, MAP_RAMP_WARN, (v-floor)/(warnAt-floor));
+}
 /* One real metric definition, reused for the national choropleth AND every deeper bubble tier. */
 const MAP_METRICS={
   attendance:{ label:TR('Attendance','الحضور'), unit:'%', value:function(n){return metricsFor(n).attendance;},
-    scale:[[94,'#00695C'],[90,'#26A69A'],[85,'#80CBC4'],[0,'#D9EFEC']] },
+    floor:60, warnAt:80, okAt:90 },
   mastery:{ label:TR('Avg. assessment grade','متوسّط الدرجات'), unit:'%', value:function(n){return metricsFor(n).mastery;},
-    scale:[[75,'#00695C'],[65,'#26A69A'],[50,'#80CBC4'],[0,'#D9EFEC']] },
+    floor:25, warnAt:50, okAt:65 },
 };
 function mapStyleFor(n){
   if(ACTIVE_MAP_METRIC==='anomalies'){
     const f=flagSummary(n), hot=f.bySev.critical+f.bySev.high;
-    return {fill: hot?'#EF4444':(f.total?'#F59E0B':'#10B981'), valStr: f.total+' '+TR('flags','تنبيه')};
+    return {fill: hot?MAP_RAMP_RISK:(f.total?MAP_RAMP_WARN:MAP_RAMP_OK), valStr: f.total+' '+TR('flags','تنبيه')};
   }
   const def=MAP_METRICS[ACTIVE_MAP_METRIC]||MAP_METRICS.attendance;
   const v=def.value(n);
-  const band=def.scale.find(function(s){return v>=s[0];}) || def.scale[def.scale.length-1];
-  return {fill:band[1], valStr:v+def.unit};
+  return {fill:rampColor(v, def.floor, def.warnAt, def.okAt), valStr:v+def.unit};
 }
 
 function renderEgyptInteractiveMap(activeNode) {
@@ -4818,7 +4839,7 @@ function renderEgyptInteractiveMap(activeNode) {
         const st=mapStyleFor(NODE[g.id]);
         return '<g pointer-events="none"><circle cx="'+g.cx+'" cy="'+g.cy+'" r="3" fill="#FFFFFF" stroke="#0B192C" stroke-width="1.5"></circle>'
           +'<text x="'+g.cx+'" y="'+(g.cy-6)+'" fill="#0B192C" font-size="8.5" font-weight="900" text-anchor="middle" style="text-shadow:0 1px 4px #fff, 0 0 2px #fff">'+(AR?g.name_ar:g.name)+'</text>'
-          +'<text x="'+g.cx+'" y="'+(g.cy+9)+'" fill="#004D40" font-size="7.5" font-weight="800" text-anchor="middle" style="text-shadow:0 1px 3px #fff">'+st.valStr+'</text></g>'; }).join('');
+          +'<text x="'+g.cx+'" y="'+(g.cy+9)+'" fill="#0B192C" font-size="7.5" font-weight="800" text-anchor="middle" style="text-shadow:0 1px 3px #fff">'+st.valStr+'</text></g>'; }).join('');
     } else if (govGeo) {
       polygons = '<path d="'+govGeo.d+'" fill="var(--teal-050)" stroke="var(--ischool-blue)" stroke-width="2" opacity="0.55"></path>';
       const kids = node.children||[];
@@ -4847,13 +4868,18 @@ function renderEgyptInteractiveMap(activeNode) {
       +'</svg>'
       +(node.level!=='ministry' && !(node.children&&node.children.length) ? '<p class="muted small" style="position:absolute;bottom:10px">'+TR('No further breakdown at this level.','لا مزيد من التفصيل في هذا المستوى.')+'</p>' : '')
       +'</div>';
-    legendHtml = ACTIVE_MAP_METRIC==='anomalies'
-      ? '<span class="map-legend-item"><i style="background:#10B981"></i>'+TR('Clear','سليم')+'</span>'
-        +'<span class="map-legend-item"><i style="background:#F59E0B"></i>'+TR('Some flags','بعض التنبيهات')+'</span>'
-        +'<span class="map-legend-item"><i style="background:#EF4444"></i>'+TR('Critical/high flags','تنبيهات حرجة')+'</span>'
-      : '<span class="muted small">0%</span><span style="display:flex;gap:3px">'
-        + ['#D9EFEC','#80CBC4','#26A69A','#00695C'].map(function(c){return '<i style="display:inline-block;width:28px;height:9px;background:'+c+';border-radius:2px"></i>';}).join('')
-        + '</span><span class="muted small" style="font-weight:700">100%</span>';
+    if(ACTIVE_MAP_METRIC==='anomalies'){
+      legendHtml = '<span class="map-legend-item"><i style="background:'+MAP_RAMP_OK+'"></i>'+TR('Clear','سليم')+'</span>'
+        +'<span class="map-legend-item"><i style="background:'+MAP_RAMP_WARN+'"></i>'+TR('Some flags','بعض التنبيهات')+'</span>'
+        +'<span class="map-legend-item"><i style="background:'+MAP_RAMP_RISK+'"></i>'+TR('Critical/high flags','تنبيهات حرجة')+'</span>';
+    } else {
+      const def=MAP_METRICS[ACTIVE_MAP_METRIC]||MAP_METRICS.attendance;
+      const stops=[]; for(let p=0;p<=100;p+=5) stops.push(rampColor(p, def.floor, def.warnAt, def.okAt)+' '+p+'%');
+      legendHtml = '<span class="muted small">0%</span>'
+        +'<span style="flex:1;max-width:260px;height:10px;border-radius:99px;margin:0 .5rem;background:linear-gradient(90deg,'+stops.join(',')+')"></span>'
+        +'<span class="muted small" style="font-weight:700">100%</span>'
+        +'<span class="muted small" style="margin-inline-start:.8rem">'+TR('target','المستهدف')+' '+def.okAt+def.unit+'</span>';
+    }
   }
 
   return '<div class="row mb map-card-row" style="align-items:stretch;gap:1.25rem;margin-top:.75rem">'
