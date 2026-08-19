@@ -5097,7 +5097,7 @@ function biTabs(node){
     + '</div>';
 }
 /* old tab ids kept working so deep links / bootstrap scripts don't break */
-const BI_TAB_ALIAS={macro:'overview', anomalies_engine:'flags', attendance_deep:'attendance', decision_support:'actions'};
+const BI_TAB_ALIAS={macro:'geo', anomalies_engine:'flags', attendance_deep:'attendance', decision_support:'actions'};
 function biTab(){ const t=S.adminAnalyticsTab||'overview'; return BI_TAB_ALIAS[t]||t; }
 
 /* ---------- pane 1: executive overview (scroll-free) ---------- */
