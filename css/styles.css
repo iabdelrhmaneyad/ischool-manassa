@@ -248,57 +248,112 @@ tbody tr:last-child td{
 }
 
 /* Sticky Appbar with Glassmorphism */
-header.appbar{
+header/* ═══════════════════════════════════════════════════════════
+   TOP APPBAR — dark navy, gold accent, glass blur
+═══════════════════════════════════════════════════════════ */
+.appbar{
   position:sticky;
   top:0;
   z-index:100;
-  background:rgba(11,25,44,0.94);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
+  background:linear-gradient(135deg,#0B192C 0%,#0D2040 100%);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
   color:#fff;
-  border-bottom:2px solid rgba(255,215,0,0.4);
-  box-shadow:0 4px 20px rgba(0,0,0,0.15);
+  border-bottom:2px solid rgba(255,215,0,0.35);
+  box-shadow:0 4px 24px rgba(5,111,236,0.18), 0 1px 4px rgba(0,0,0,0.25);
 }
 .appbar .wrap{
-  min-height:60px;
-  padding-top:.4rem;
-  padding-bottom:.4rem;
+  min-height:64px;
+  padding-top:.45rem;
+  padding-bottom:.45rem;
 }
 
-/* Modern Primary Nav Bar */
-nav.mainnav{
-  background:var(--paper);
-  border-bottom:1.5px solid var(--line);
+/* Brand link inside appbar */
+.appbar .brand{
+  color:#fff;
+  text-decoration:none;
+  font-weight:700;
+  letter-spacing:.01em;
+}
+.appbar .brand:hover{
+  color:var(--ischool-gold);
+}
+
+/* Role badge / title inside appbar */
+.appbar .role-title{
+  color:rgba(255,255,255,0.72);
+  font-size:.82rem;
+  font-weight:600;
+  letter-spacing:.02em;
+}
+
+/* Avatar / icon buttons in appbar */
+.appbar button,
+.appbar [role="button"]{
+  color:rgba(255,255,255,0.85);
+  background:transparent;
+  border:none;
+  cursor:pointer;
+  border-radius:var(--radius-sm);
+  padding:.3rem .5rem;
+  transition:var(--transition);
+}
+.appbar button:hover,
+.appbar [role="button"]:hover{
+  color:#fff;
+  background:rgba(255,255,255,0.1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SECONDARY NAV — matches dark appbar theme, pill active state
+═══════════════════════════════════════════════════════════ */
+nav.mainnav,
+.mainnav{
+  background:linear-gradient(180deg,#0F2035 0%,#0B1A2E 100%);
+  border-bottom:1.5px solid rgba(255,215,0,0.18);
   position:sticky;
-  top:60px;
+  top:64px;
   z-index:90;
-  box-shadow:0 2px 10px rgba(0,0,0,0.03);
+  box-shadow:0 4px 12px rgba(0,0,0,0.18);
 }
 .navlink{
   display:inline-flex;
   align-items:center;
   gap:.5rem;
   min-height:var(--tap);
-  padding:.4rem 1.1rem;
+  padding:.5rem 1.2rem;
   border:none;
   background:transparent;
-  color:var(--ink-2);
+  color:rgba(255,255,255,0.62);
   font:inherit;
-  font-weight:700;
+  font-size:.88rem;
+  font-weight:600;
   cursor:pointer;
   border-bottom:3px solid transparent;
   white-space:nowrap;
   transition:var(--transition);
+  border-radius:0;
+}
+.navlink svg{
+  opacity:.7;
+  transition:var(--transition);
 }
 .navlink:hover{
-  color:var(--ischool-blue);
-  background:var(--teal-050);
+  color:#fff;
+  background:rgba(5,111,236,0.14);
+  border-bottom-color:rgba(5,111,236,0.55);
+}
+.navlink:hover svg{
+  opacity:1;
 }
 .navlink[aria-current="page"]{
-  color:var(--ischool-blue);
-  border-bottom-color:var(--ischool-blue);
+  color:var(--ischool-gold);
+  border-bottom-color:var(--ischool-gold);
   font-weight:800;
-  background:var(--teal-050);
+  background:rgba(255,215,0,0.08);
+}
+.navlink[aria-current="page"] svg{
+  opacity:1;
 }
 
 /* Modern Modal Overlay */
