@@ -1848,10 +1848,10 @@ function appbar(){
         
         <!-- Persistent Multi-Page Navigation Bar -->
         <nav style="display:inline-flex;align-items:center;gap:.25rem;background:rgba(0,0,0,.25);padding:.2rem .35rem;border-radius:999px;margin-inline-start:.4rem" aria-label="${TR('Portals','البوابات')}">
-          <a href="ministry.html" class="btn ghost xs" style="min-height:28px;padding:.15rem .55rem;border-radius:999px;font-size:.76rem;${S.route==='admin'?'background:var(--ischool-gold);color:#0B192C;font-weight:800;':''}">${uiIcon('ministry', 13)} ${TR('Ministry','الوزارة')}</a>
-          <a href="teacher.html" class="btn ghost xs" style="min-height:28px;padding:.15rem .55rem;border-radius:999px;font-size:.76rem;${S.route==='teacher'?'background:var(--ischool-gold);color:#0B192C;font-weight:800;':''}">${uiIcon('teacher', 13)} ${TR('Teacher','المعلم')}</a>
-          <a href="student.html" class="btn ghost xs" style="min-height:28px;padding:.15rem .55rem;border-radius:999px;font-size:.76rem;${S.route==='student'?'background:var(--ischool-gold);color:#0B192C;font-weight:800;':''}">${uiIcon('student', 13)} ${TR('Student','الطالب')}</a>
-          <a href="parent.html" class="btn ghost xs" style="min-height:28px;padding:.15rem .55rem;border-radius:999px;font-size:.76rem;${S.route==='parent'?'background:var(--ischool-gold);color:#0B192C;font-weight:800;':''}">${uiIcon('parent', 13)} ${TR('Parent','ولي الأمر')}</a>
+          <a href="ministry.html" class="btn ghost xs" style="min-height:28px;padding:.15rem .55rem;border-radius:999px;font-size:.76rem;${S.route==='admin'?'background:var(--ischool-gold);color:#0B192C;font-weight:800;':'color:rgba(255,255,255,.88);'}">${uiIcon('ministry', 13)} ${TR('Ministry','الوزارة')}</a>
+          <a href="teacher.html" class="btn ghost xs" style="min-height:28px;padding:.15rem .55rem;border-radius:999px;font-size:.76rem;${S.route==='teacher'?'background:var(--ischool-gold);color:#0B192C;font-weight:800;':'color:rgba(255,255,255,.88);'}">${uiIcon('teacher', 13)} ${TR('Teacher','المعلم')}</a>
+          <a href="student.html" class="btn ghost xs" style="min-height:28px;padding:.15rem .55rem;border-radius:999px;font-size:.76rem;${S.route==='student'?'background:var(--ischool-gold);color:#0B192C;font-weight:800;':'color:rgba(255,255,255,.88);'}">${uiIcon('student', 13)} ${TR('Student','الطالب')}</a>
+          <a href="parent.html" class="btn ghost xs" style="min-height:28px;padding:.15rem .55rem;border-radius:999px;font-size:.76rem;${S.route==='parent'?'background:var(--ischool-gold);color:#0B192C;font-weight:800;':'color:rgba(255,255,255,.88);'}">${uiIcon('parent', 13)} ${TR('Parent','ولي الأمر')}</a>
         </nav>
       </div>
 
@@ -2243,10 +2243,15 @@ function loginView(){
           </div>
           <h3 class="portal-card-title">${TR('Ministry & Strategic Oversight','المتابعة والقيادة الاستراتيجية')}</h3>
           <p class="portal-card-desc">${TR('Interactive 27-Governorate Egypt heatmap, 5-tab scroll-free analytics cockpit, automated anomaly detection, and decision support.','خريطة مصر التفاعلية لـ ٢٧ محافظة، لوحة القيادة التحليلية، محرك رصد الأنماط الشاذة، ودعم القرار.')}</p>
-          <a href="ministry.html" class="portal-card-cta cta-ministry">
-            <span>${t('enter')}</span>
-            <span class="cta-arrow">←</span>
-          </a>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
+            <button type="button" data-open-map-preview="1" class="btn xs" style="background:rgba(255,215,0,0.16);color:var(--ischool-gold);border:1px solid rgba(255,215,0,0.35);border-radius:999px;font-size:.76rem;font-weight:700;padding:.3rem .65rem;cursor:pointer;display:inline-flex;align-items:center;gap:.3rem">
+              ${uiIcon('globe', 13)} ${TR('Interactive Map Preview','استعراض الخريطة التفاعلية')}
+            </button>
+            <a href="ministry.html" class="portal-card-cta cta-ministry" style="margin-top:0">
+              <span>${t('enter')}</span>
+              <span class="cta-arrow">←</span>
+            </a>
+          </div>
         </div>
 
         <!-- 5. School Leader -->
@@ -4583,9 +4588,37 @@ function mapGovAncestor(n){ let cur=n; while(cur && cur.level!=='governorate') c
    anywhere else in the dashboard — it just blends smoothly between them. */
 function hexToRgb(hex){ const n=parseInt(hex.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
 function rgbToHex(rgb){ return '#'+rgb.map(function(v){ return clamp(Math.round(v),0,255).toString(16).padStart(2,'0'); }).join(''); }
+function rgbToHsl(rgb){
+  const r=rgb[0]/255,g=rgb[1]/255,b=rgb[2]/255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b); let h=0,s=0; const l=(max+min)/2;
+  const d=max-min;
+  if(d){
+    s=l>0.5 ? d/(2-max-min) : d/(max+min);
+    if(max===r) h=((g-b)/d + (g<b?6:0));
+    else if(max===g) h=(b-r)/d + 2;
+    else h=(r-g)/d + 4;
+    h*=60;
+  }
+  return [h,s,l];
+}
+function hslToRgb(h,s,l){
+  if(!s) { const v=l*255; return [v,v,v]; }
+  const q=l<0.5 ? l*(1+s) : l+s-l*s, p=2*l-q;
+  function hue2rgb(t){ if(t<0)t+=1; if(t>1)t-=1;
+    if(t<1/6) return p+(q-p)*6*t;
+    if(t<1/2) return q;
+    if(t<2/3) return p+(q-p)*(2/3-t)*6;
+    return p; }
+  const hk=h/360;
+  return [hue2rgb(hk+1/3)*255, hue2rgb(hk)*255, hue2rgb(hk-1/3)*255];
+}
+/* Interpolate through HSL (sweeping hue at roughly constant saturation/lightness)
+   instead of straight RGB — a red→amber→green RGB blend dips through a muddy
+   olive midpoint, while an HSL sweep reads as a clean, vivid spectrum band. */
 function lerpColor(c1,c2,t){
-  const a=hexToRgb(c1), b=hexToRgb(c2);
-  return rgbToHex([a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]);
+  const a=rgbToHsl(hexToRgb(c1)), b=rgbToHsl(hexToRgb(c2));
+  const h=a[0]+(b[0]-a[0])*t, s=a[1]+(b[1]-a[1])*t, l=a[2]+(b[2]-a[2])*t;
+  return rgbToHex(hslToRgb(h,s,l));
 }
 const MAP_RAMP_RISK='#EF4444', MAP_RAMP_WARN='#F59E0B', MAP_RAMP_OK='#10B981';
 function rampColor(v, floor, warnAt, okAt){
@@ -4830,16 +4863,16 @@ function renderEgyptInteractiveMap(activeNode) {
     if (node.level==='ministry') {
       polygons = govData.map(function(g){
         const st=mapStyleFor(NODE[g.id]);
-        return '<path id="poly-'+g.id+'" d="'+g.d+'" fill="'+st.fill+'" stroke="#FFFFFF" stroke-width="1.25" '
-          +'style="cursor:pointer;transition:fill .25s ease" onclick="mapDrillTo(\''+g.id+'\')" '
+        return '<path id="poly-'+g.id+'" d="'+g.d+'" fill="'+st.fill+'" stroke="#FFFFFF" stroke-width="1.5" '
+          +'style="cursor:pointer;transition:fill .25s ease,opacity .2s ease" onclick="mapDrillTo(\''+g.id+'\')" '
           +'onmouseover="updateMapHeader(\''+esc(g.name_ar)+'\',\''+esc(g.name)+'\',\''+st.valStr+'\','+m.mastery+','+m.attendance+','+g.students+')" '
           +'onfocus="updateMapHeader(\''+esc(g.name_ar)+'\',\''+esc(g.name)+'\',\''+st.valStr+'\','+m.mastery+','+m.attendance+','+g.students+')" '
-          +'tabindex="0" role="button" aria-label="'+esc(g.name_ar)+' — '+st.valStr+'"></path>'; }).join('');
+          +'tabindex="0" role="button" aria-label="'+esc(g.name_ar)+' — '+st.valStr+'"><title>'+esc(g.name_ar)+' · '+st.valStr+'</title></path>'; }).join('');
+      /* Only the number sits on the map itself — 27 names + values at once is noise.
+         The full name surfaces in the header above on hover/focus (updateMapHeader). */
       points = govData.map(function(g){
         const st=mapStyleFor(NODE[g.id]);
-        return '<g pointer-events="none"><circle cx="'+g.cx+'" cy="'+g.cy+'" r="3" fill="#FFFFFF" stroke="#0B192C" stroke-width="1.5"></circle>'
-          +'<text x="'+g.cx+'" y="'+(g.cy-6)+'" fill="#0B192C" font-size="8.5" font-weight="900" text-anchor="middle" style="text-shadow:0 1px 4px #fff, 0 0 2px #fff">'+(AR?g.name_ar:g.name)+'</text>'
-          +'<text x="'+g.cx+'" y="'+(g.cy+9)+'" fill="#0B192C" font-size="7.5" font-weight="800" text-anchor="middle" style="text-shadow:0 1px 3px #fff">'+st.valStr+'</text></g>'; }).join('');
+        return '<g pointer-events="none"><text x="'+g.cx+'" y="'+(g.cy+3)+'" fill="#0B192C" font-size="8.5" font-weight="900" text-anchor="middle" style="text-shadow:0 1px 3px #fff, 0 0 4px #fff">'+st.valStr+'</text></g>'; }).join('');
     } else if (govGeo) {
       polygons = '<path d="'+govGeo.d+'" fill="var(--teal-050)" stroke="var(--ischool-blue)" stroke-width="2" opacity="0.55"></path>';
       const kids = node.children||[];
@@ -4882,26 +4915,53 @@ function renderEgyptInteractiveMap(activeNode) {
     }
   }
 
+  const headerStyle=mapStyleFor(node);
+  const kids0=node.children||[];
+
+  /* Ranked mini-list — reuses the same "surface where support is needed" idea as
+     the compare panel elsewhere, so the sidebar earns its space with a real
+     finding instead of a static instructions list. */
+  let rankedHtml='';
+  if(kids0.length){
+    const riskM=ACTIVE_MAP_METRIC==='anomalies';
+    const rows=kids0.map(function(ch){
+      const st=mapStyleFor(ch);
+      return {ch:ch, st:st, sortv: riskM ? flagSummary(ch).total : MAP_METRICS[ACTIVE_MAP_METRIC].value(ch)};
+    }).sort(function(a,b){ return riskM ? b.sortv-a.sortv : a.sortv-b.sortv; });
+    const worst=rows.slice(0,3);
+    rankedHtml=biPanel({
+      title: riskM ? TR('Most QA flags','الأكثر تنبيهات') : TR('Needs support most','الأكثر حاجة للدعم'),
+      sub: TR('Tap to drill straight in','اضغط للتعمّق مباشرة'),
+      flush:true,
+      body:'<div class="bi-cmp">'+worst.map(function(r){
+        return '<button type="button" class="bi-cmp-row" onclick="mapDrillTo(\''+r.ch.id+'\')">'
+          +'<span class="bi-cmp-l" title="'+esc(nodeName(r.ch))+'">'+esc(nodeName(r.ch))+'</span>'
+          +'<span class="map-swatch" style="background:'+r.st.fill+'"></span>'
+          +'<span class="bi-cmp-v">'+r.st.valStr+'</span>'
+          +'</button>'; }).join('')+'</div>'
+    });
+  }
+
   return '<div class="row mb map-card-row" style="align-items:stretch;gap:1.25rem;margin-top:.75rem">'
-    +'<div class="card" style="flex:1.75;min-width:350px;padding:1.35rem;display:flex;flex-direction:column;justify-content:space-between">'
+    +'<div class="card map-card">'
     +'<div>'
-    +'<div class="flex between center wrapw" style="margin-bottom:.5rem;padding-bottom:.6rem;border-bottom:1.5px solid var(--line)">'
-    +'<div><div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
-    +'<h2 id="map-active-gov-title" style="margin:0;font-size:1.35rem;font-weight:900;color:var(--ink)">'+esc(nodeName(node))+'</h2>'
+    +'<div class="map-card-head">'
+    +'<div class="map-card-titlerow">'
+    +uiIcon('map',20)
+    +'<h2 id="map-active-gov-title">'+esc(nodeName(node))+'</h2>'
+    +'<span id="map-active-metrics-badge" class="map-value-pill" style="background:'+headerStyle.fill+'">'+headerStyle.valStr+'</span>'
+    +'<span class="map-card-spacer"></span>'
     + zoomCtrls
     +'</div>'
-    + (scopePath?'<p class="small muted" style="margin:.2rem 0 0">'+esc(scopePath)+'</p>':
-       '<p class="small muted" style="margin:.25rem 0 0">'+TR('Click any governorate to zoom in — governorate → district → school → class → student','اضغط أي محافظة للتعمّق — محافظة ← إدارة ← مدرسة ← فصل ← طالب')+'</p>')
+    + (scopePath?'<p class="small muted" style="margin:.3rem 0 0">'+esc(scopePath)+'</p>':
+       '<p class="small muted" style="margin:.3rem 0 0">'+TR('Click any governorate to zoom in — governorate → district → school → class → student','اضغط أي محافظة للتعمّق — محافظة ← إدارة ← مدرسة ← فصل ← طالب')+'</p>')
     +'</div>'
-    +'<div id="map-active-metrics-badge" style="display:flex;align-items:center;gap:.6rem">'
-    +'<span class="tag ok" style="font-size:.9rem;font-weight:900;padding:.35rem .8rem;border-radius:10px">'+mapStyleFor(node).valStr+'</span>'
-    +'</div></div>'
-    +'<div class="flex center between wrapw" style="margin-bottom:.6rem;gap:.5rem">'
+    +'<div class="flex center between wrapw" style="margin:.7rem 0 .6rem;gap:.5rem">'
     +'<div class="seg" role="group" aria-label="'+TR('Map metric','مؤشر الخريطة')+'">'+metricPills+'</div>'
     +'<span class="small muted" style="font-weight:700">'+levelLabel(node.level)+' · '+cohortOf(node).toLocaleString()+' '+TR('students','طالب')+'</span>'
     +'</div></div>'
     +mapBody
-    +'<div class="flex between center wrapw" style="margin-top:.65rem;padding-top:.5rem;border-top:1px solid var(--line);font-size:.8rem">'+legendHtml+'</div>'
+    +'<div class="map-legend-row">'+legendHtml+'</div>'
     +'</div>'
     +'<div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:1rem">'
     + biPanel({ title:TR('Selected scope snapshot','لقطة سريعة للنطاق'),
@@ -4910,14 +4970,11 @@ function renderEgyptInteractiveMap(activeNode) {
           +'<div><span class="bi-fact-n" style="color:var(--info-700)">'+m.mastery+'%</span><span class="bi-fact-l">'+TR('avg. grade','متوسّط الدرجات')+'</span></div>'
           +'<div><span class="bi-fact-n">'+cohortOf(node).toLocaleString()+'</span><span class="bi-fact-l">'+TR('students','طالب')+'</span></div>'
           +'<div><span class="bi-fact-n" style="color:'+(flagSummary(node).total?'var(--warn-700)':'var(--ok-700)')+'">'+flagSummary(node).total+'</span><span class="bi-fact-l">'+TR('QA flags','تنبيهات')+'</span></div>'
-          +'</div>' })
-    + biPanel({ title:TR('How to use this map','كيفية استخدام الخريطة'),
-        body:'<ol class="bi-rules" style="grid-template-columns:1fr">'
-          +'<li><span class="bi-rid">1</span><span>'+TR('Click a governorate to zoom in.','اضغط محافظة للتكبير.')+'</span></li>'
-          +'<li><span class="bi-rid">2</span><span>'+TR('Keep clicking — district, then school, then class.','واصل الضغط — إدارة ثم مدرسة ثم فصل.')+'</span></li>'
-          +'<li><span class="bi-rid">3</span><span>'+TR('At class level, tap a student for their full ledger.','عند الفصل، اضغط طالبًا لعرض كشف درجاته.')+'</span></li>'
-          +'<li><span class="bi-rid">4</span><span>'+TR('Use “Zoom out” or “Top level” to go back.','استخدم «تصغير» أو «أعلى مستوى» للعودة.')+'</span></li>'
-          +'</ol>' })
+          +'</div>',
+        foot: node.level==='class'
+          ? TR('Tap a student above for their full ledger.','اضغط طالبًا أعلاه لعرض كشف درجاته.')
+          : TR('Click the map, or a row below, to zoom in one level.','اضغط الخريطة، أو صفًّا أدناه، للتعمّق مستوى واحدًا.') })
+    + rankedHtml
     +'</div></div>';
 }
 
@@ -7832,6 +7889,21 @@ function drilldownModalOverlay(){
     </div>
     <p class="small muted mt">${TR('💡 Ministerial Calculation Rule: Overdue assignments past the 1-week grace period default to 0 to prevent grade inflation until submitted.','💡 قاعدة الحساب الوزارية: التقييمات المتأخرة التي تجاوزت مهلة الأسبوع تُحتسب بقيمة صفر حتى يتم رصدها فعليًا، لحماية مصداقية المؤشرات ومنع تضخيم النتائج.')}</p>
     `;
+  } else if (d.type === 'map_preview') {
+    content = `
+    <div class="flex between center" style="margin-bottom:1rem;border-bottom:1.5px solid var(--line);padding-bottom:.75rem">
+      <div>
+        <p class="eyebrow" style="margin:0">${TR('National Geographic Intelligence · GIS Engine','محرك الذكاء الجغرافي واستطلاع البيانات القومية')}</p>
+        <h2 style="margin:0">🗺️ ${TR('Interactive Egypt Map — 27 Governorates','خريطة جمهورية مصر العربية التفاعلية — ٢٧ محافظة')}</h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <a href="ministry.html" class="btn gold sm" style="font-weight:800">${TR('Full Ministry Cockpit','لوحة القيادة الكاملة')} →</a>
+        <button class="iconbtn" data-close-modal>✕</button>
+      </div>
+    </div>
+    <div style="min-height:540px">
+      ${renderEgyptInteractiveMap(adminScopeNode())}
+    </div>`;
   } else if (d.type === 'anomalies_list') {
     content = `
     <div class="flex between center" style="margin-bottom:1rem;border-bottom:1.5px solid var(--line);padding-bottom:.75rem">
@@ -8152,6 +8224,11 @@ document.addEventListener('click', (e)=>{
   }
   if (d.openAnomalies != null) {
     S.activeDrilldown = { type: 'anomalies_list' };
+    render();
+    return;
+  }
+  if (d.openMapPreview != null) {
+    S.activeDrilldown = { type: 'map_preview' };
     render();
     return;
   }

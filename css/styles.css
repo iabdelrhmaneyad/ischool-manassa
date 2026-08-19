@@ -289,8 +289,10 @@ header/* ═══════════════════════�
 
 /* Avatar / icon buttons in appbar */
 .appbar button,
-.appbar [role="button"]{
-  color:rgba(255,255,255,0.85);
+.appbar [role="button"],
+.appbar a.btn.ghost,
+.appbar .btn.ghost {
+  color:rgba(255,255,255,0.88);
   background:transparent;
   border:none;
   cursor:pointer;
@@ -299,9 +301,11 @@ header/* ═══════════════════════�
   transition:var(--transition);
 }
 .appbar button:hover,
-.appbar [role="button"]:hover{
+.appbar [role="button"]:hover,
+.appbar a.btn.ghost:hover,
+.appbar .btn.ghost:hover {
   color:#fff;
-  background:rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.15);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1392,14 +1396,25 @@ button.bi-kpi:hover{border-color:var(--ischool-blue);box-shadow:var(--shadow-sm)
 /* ============================================================
    MINISTRY MAP — governorate → district → school → class → student
    ============================================================ */
-.map-canvas{position:relative;width:100%;min-height:400px;display:flex;justify-content:center;align-items:center;
-  background:radial-gradient(circle at 50% 50%, #FFFFFF 0%, #F1F5F9 100%);border-radius:16px;
+.map-card{flex:1.9;min-width:380px;padding:1.35rem 1.4rem;display:flex;flex-direction:column;justify-content:space-between;}
+.map-card-head{padding-bottom:.7rem;border-bottom:1.5px solid var(--line);}
+.map-card-titlerow{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;}
+.map-card-titlerow > svg{color:var(--ischool-blue);flex:0 0 auto;}
+.map-card-titlerow h2{margin:0;font-size:1.32rem;font-weight:900;color:var(--ink);}
+.map-card-spacer{flex:1 1 auto;}
+.map-value-pill{display:inline-flex;align-items:center;font-size:.92rem;font-weight:900;color:#fff;
+  padding:.28rem .75rem;border-radius:999px;line-height:1.3;box-shadow:0 2px 6px rgba(0,0,0,.12);}
+.map-canvas{position:relative;width:100%;min-height:480px;display:flex;justify-content:center;align-items:center;
+  background:radial-gradient(circle at 50% 40%, #FFFFFF 0%, #F1F5F9 100%);border-radius:16px;
   border:1.5px solid var(--line);overflow:hidden;padding:.5rem;flex:1;}
 .map-bubble{cursor:pointer;}
 .map-bubble:focus circle{stroke:var(--ischool-gold);stroke-width:3.5;}
 .map-zoomout{padding:.15rem .6rem;border-radius:999px;font-size:.76rem;}
+.map-legend-row{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-top:.75rem;padding-top:.6rem;
+  border-top:1px solid var(--line);font-size:.8rem;}
 .map-legend-item{display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--ink-2);font-weight:700;}
 .map-legend-item i{width:11px;height:11px;border-radius:3px;display:inline-block;}
+.map-swatch{width:10px;height:10px;border-radius:3px;flex:0 0 auto;justify-self:center;}
 .map-roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem;width:100%;
   max-height:440px;overflow:auto;padding:.3rem;}
 .map-stu{display:flex;flex-direction:column;align-items:center;gap:.35rem;text-align:center;
@@ -1450,4 +1465,62 @@ a.signout-btn:hover {
   border-color: #EF4444 !important;
   box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45) !important;
   transform: translateY(-1px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GLOBAL HEADER ENHANCEMENTS & NAV CONSISTENCY ACROSS PAGES
+═══════════════════════════════════════════════════════════ */
+.appbar nav a.btn.ghost,
+.appbar .btn.ghost {
+  color: rgba(255, 255, 255, 0.9) !important;
+  text-decoration: none;
+}
+
+.appbar nav a.btn.ghost:hover,
+.appbar .btn.ghost:hover {
+  color: #FFFFFF !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+
+html.dark .appbar {
+  background: linear-gradient(135deg, #0B192C 0%, #0D2040 100%) !important;
+  border-bottom-color: rgba(255, 215, 0, 0.4) !important;
+}
+
+html.dark .appbar .brand span,
+html.dark .appbar .brand {
+  color: #FFFFFF !important;
+}
+
+html.dark .appbar nav a.btn.ghost:not([style*="background"]) {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Secondary mainnav bar styling */
+nav.mainnav {
+  box-shadow: 0 4px 12px rgba(11, 25, 44, 0.06);
+}
+
+.navlink[aria-current="page"] {
+  color: var(--ischool-blue-dark) !important;
+  border-bottom: 3.5px solid var(--ischool-blue) !important;
+  font-weight: 800 !important;
+}
+
+html.dark nav.mainnav {
+  background: #111827 !important;
+  border-bottom-color: #374151 !important;
+}
+
+html.dark .navlink {
+  color: #9CA3AF;
+}
+
+html.dark .navlink:hover {
+  color: #60A5FA;
+}
+
+html.dark .navlink[aria-current="page"] {
+  color: #60A5FA !important;
+  border-bottom-color: #3B82F6 !important;
 }
