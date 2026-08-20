@@ -1407,9 +1407,31 @@ button.bi-kpi:hover{border-color:var(--ischool-blue);box-shadow:var(--shadow-sm)
 .map-canvas{position:relative;width:100%;min-height:480px;display:flex;justify-content:center;align-items:center;
   background:radial-gradient(circle at 50% 40%, #FFFFFF 0%, #F1F5F9 100%);border-radius:16px;
   border:1.5px solid var(--line);overflow:hidden;padding:.5rem;flex:1;}
-.map-bubble{cursor:pointer;}
+/* ---- Map Metric Switcher Button Group ---- */
+.map-metric-pills{display:inline-flex;align-items:center;gap:3px;background:var(--sand,#F1F5F9);border:1.5px solid var(--line,#CBD5E1);border-radius:999px;padding:3px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.06);}
+.map-metric-pills .map-pill-btn,
+.map-metric-pills button{display:inline-flex;align-items:center;gap:0.45rem;border:none;background:transparent;color:var(--ink-2,#64748B);font:inherit;font-weight:700;font-size:0.84rem;padding:0.4rem 0.85rem;border-radius:999px;cursor:pointer;transition:all 0.2s cubic-bezier(0.4,0,0.2,1);white-space:nowrap;}
+.map-metric-pills .map-pill-btn:hover,
+.map-metric-pills button:hover{color:var(--ischool-blue,#056FEC);background:rgba(5,111,236,0.08);}
+.map-metric-pills .map-pill-btn.on,
+.map-metric-pills button.on{color:#FFFFFF !important;background:linear-gradient(135deg,#056FEC 0%,#034EA2 100%) !important;box-shadow:0 2px 8px rgba(5,111,236,0.4);}
+.map-metric-pills svg{vertical-align:middle;}
+
+.map-poly{cursor:pointer;transition:filter .2s ease, opacity .2s ease;}
+.map-poly:hover{filter:brightness(1.18) drop-shadow(0 0 10px rgba(5,111,236,0.6));opacity:0.95;}
+.map-pin-badge{cursor:pointer;transition:filter .18s ease, opacity .18s ease;pointer-events:all;}
+.map-pin-badge:hover{filter:drop-shadow(0 0 10px rgba(245,158,11,0.9)) brightness(1.25);}
+.map-pin-badge:hover rect{stroke:#FFFFFF !important;stroke-width:2px !important;}
+.map-pin-badge:hover circle{stroke:#FFFFFF !important;stroke-width:2px !important;}
+.map-pin-badge:hover text{fill:#FFFFFF !important;}
+.map-pin-group{cursor:pointer;transition:filter .2s ease;}
+.map-pin-group:hover{filter:drop-shadow(0 4px 8px rgba(0,0,0,0.4));}
+.map-bubble{cursor:pointer;transition:filter .2s ease;}
+.map-bubble:hover{filter:brightness(1.15) drop-shadow(0 4px 10px rgba(5,111,236,0.5));}
 .map-bubble:focus circle{stroke:var(--ischool-gold);stroke-width:3.5;}
-.map-zoomout{padding:.15rem .6rem;border-radius:999px;font-size:.76rem;}
+.map-tip{position:absolute;z-index:100;pointer-events:none !important;background:rgba(11,25,44,0.96);backdrop-filter:blur(10px);color:#fff;border:1.5px solid var(--ischool-gold);border-radius:8px;padding:.55rem .85rem;font-size:.8rem;font-weight:700;transform:translate(-50%,-130%);box-shadow:0 8px 24px rgba(0,0,0,0.45);transition:opacity .15s ease;white-space:nowrap;}
+.map-zoomout{padding:.25rem .75rem;border-radius:999px;font-size:.78rem;font-weight:700;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;transition:all .2s ease;}
+.map-zoomout:hover{border-color:var(--ischool-blue);color:var(--ischool-blue);background:var(--teal-050);}
 .map-legend-row{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-top:.75rem;padding-top:.6rem;
   border-top:1px solid var(--line);font-size:.8rem;}
 .map-legend-item{display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--ink-2);font-weight:700;}
@@ -1428,9 +1450,26 @@ button.bi-kpi:hover{border-color:var(--ischool-blue);box-shadow:var(--shadow-sm)
 .map-stu-n{font-size:.82rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .map-stu-m{font-size:.72rem;color:var(--ink-2);font-weight:600;}
 
+/* Sub-tier Grid Cards (Governorate / District / School drilldown) */
+.map-tier-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.85rem;width:100%;max-height:500px;overflow-y:auto;padding:.4rem;}
+.map-unit-card{display:flex;flex-direction:column;justify-content:space-between;gap:.7rem;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--radius);padding:1rem 1.1rem;cursor:pointer;font:inherit;text-align:right;transition:all .2s cubic-bezier(0.4,0,0.2,1);box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
+.map-unit-card:hover{border-color:var(--ischool-blue);transform:translateY(-2px);box-shadow:0 8px 20px rgba(5,111,236,0.12);}
+.map-unit-card.ok{border-top:3.5px solid var(--ok-700);}
+.map-unit-card.warn{border-top:3.5px solid var(--warn-700);}
+.map-unit-card.risk{border-top:3.5px solid var(--risk-700);}
+.map-unit-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;}
+.map-unit-title{font-size:.95rem;font-weight:800;color:var(--ink);margin:0;line-height:1.35;}
+.map-unit-metrics{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
+.map-unit-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .55rem;border-radius:6px;font-size:.76rem;font-weight:700;background:var(--sand);color:var(--ink-2);}
+.map-unit-badge.hi{background:rgba(5,111,236,0.08);color:var(--ischool-blue);font-weight:800;}
+.map-unit-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:.55rem;font-size:.78rem;color:var(--ink-2);}
+.map-unit-cta{display:inline-flex;align-items:center;gap:.3rem;font-weight:800;color:var(--ischool-blue);}
+
 /* dark-mode alignment for the new BI surfaces */
 html.dark .bi-cmd, html.dark .bi-panel, html.dark .bi-kpi, html.dark .tier, html.dark .bi-fchip,
-html.dark .bi-bell, html.dark .map-canvas, html.dark .map-stu{ background:var(--surface); border-color:var(--line); color:var(--ink); }
+html.dark .bi-bell, html.dark .map-canvas, html.dark .map-stu, html.dark .map-unit-card{ background:var(--surface); border-color:var(--line); color:var(--ink); }
+html.dark .map-unit-title{ color:var(--ink); }
+html.dark .map-unit-badge{ background:var(--surface-2); color:var(--ink-2); }
 html.dark .bi-tab.on, html.dark .tier.here{ background:var(--surface-2); }
 html.dark .bi-case.open{ background:var(--surface-2); }
 
@@ -1524,3 +1563,199 @@ html.dark .navlink[aria-current="page"] {
   color: #60A5FA !important;
   border-bottom-color: #3B82F6 !important;
 }
+
+/* ============================================================
+   MODERN TEACHER WORKSPACE — Class Switcher & Attendance System
+   ============================================================ */
+.classbar-modern {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  padding: 0.9rem 1.25rem;
+  background: linear-gradient(135deg, #0B192C 0%, #11284A 100%);
+  color: #FFFFFF;
+  border-radius: var(--radius-lg);
+  margin-bottom: 1.35rem;
+  box-shadow: 0 6px 22px rgba(11, 25, 44, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.classbar-badge-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--ischool-gold, #F59E0B);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.class-pill-btn {
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #E2E8F0;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.class-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+.class-pill-btn.active {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+  color: #0B192C !important;
+  font-weight: 900 !important;
+  border-color: #F59E0B !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
+}
+
+.att-sticky-bar {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1.15rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.15rem;
+}
+html.dark .att-sticky-bar {
+  background: rgba(17, 24, 39, 0.95);
+  border-color: #374151;
+}
+
+.att-counter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.att-counter-pill.present { background: #ECFDF5; color: #047857; border: 1.5px solid #A7F3D0; }
+.att-counter-pill.late { background: #FFFBEB; color: #B45309; border: 1.5px solid #FDE68A; }
+.att-counter-pill.absent { background: #FEF2F2; color: #B91C1C; border: 1.5px solid #FECACA; }
+.att-counter-pill.excused { background: #F0F9FF; color: #0369A1; border: 1.5px solid #BAE6FD; }
+
+.att-card-modern {
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 0.95rem 1.2rem;
+  background: var(--paper);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.att-card-modern:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+.att-pill-btn {
+  flex: 1;
+  min-height: 40px;
+  border: 1.5px solid var(--line);
+  background: var(--sand, #F8FAFC);
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.86rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+.att-pill-btn:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+.att-pill-btn.present.active,
+.att-pill-btn[aria-checked="true"][data-val="present"] {
+  background: #10B981 !important;
+  color: #FFFFFF !important;
+  border-color: #059669 !important;
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.35);
+}
+.att-pill-btn.late.active,
+.att-pill-btn[aria-checked="true"][data-val="late"] {
+  background: #F59E0B !important;
+  color: #FFFFFF !important;
+  border-color: #D97706 !important;
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.35);
+}
+.att-pill-btn.absent.active,
+.att-pill-btn[aria-checked="true"][data-val="absent"] {
+  background: #EF4444 !important;
+  color: #FFFFFF !important;
+  border-color: #DC2626 !important;
+  box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
+}
+.att-pill-btn.excused.active,
+.att-pill-btn[aria-checked="true"][data-val="excused"] {
+  background: #0284C7 !important;
+  color: #FFFFFF !important;
+  border-color: #0369A1 !important;
+  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MINISTRY BI DASHBOARD — EYE-COMFORT & QUIZ SESSION FILTERS
+   ═══════════════════════════════════════════════════════════ */
+.bi-sub-pill {
+  border: 1.5px solid var(--line, #CBD5E1);
+  background: var(--sand, #F8FAFC);
+  color: var(--ink-2, #475569);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.bi-sub-pill:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+  border-color: #94A3B8;
+}
+.bi-sub-pill.on {
+  background: #056FEC !important;
+  color: #FFFFFF !important;
+  border-color: #0256B8 !important;
+  box-shadow: 0 2px 8px rgba(5, 111, 236, 0.3);
+}
+
+html.dark .bi-sub-pill {
+  background: #1E293B;
+  color: #94A3B8;
+  border-color: #334155;
+}
+html.dark .bi-sub-pill:hover {
+  background: #334155;
+  color: #F8FAFC;
+}
+html.dark .bi-sub-pill.on {
+  background: #3B82F6 !important;
+  color: #FFFFFF !important;
+  border-color: #2563EB !important;
+}
+
+

@@ -363,6 +363,7 @@ function allStudents(node){
 }
 function schoolsUnder(node){ if(node.level==='school') return [node]; let out=[]; (node.children||[]).forEach(c=>{ if(c.level==='school') out.push(c); else out=out.concat(schoolsUnder(c)); }); return out; }
 function metricsFor(node){
+  if(!node) return {students:0, attendance:85, mastery:70, atRisk:0, high:0, dropoutRiskPct:0, accommodations:0, girls:0, boys:0, schools:0, offlineSchools:0, onlineShare:100, staleSchools:0, uptime:'99.9', lowBandSuccess:95, teacherTraining:85, contentAccessible:90, teacherAttendance:92, totalExcused:0, excusedAbuseRatio:15, anomalies:[], anomaly:false, masteryGirls:70, masteryBoys:70, masteryAcc:68, masteryNonAcc:72};
   if(node._m && node._m._dateRange === S.dateRange) return node._m;
   const st=allStudents(node);
   const n=st.length||1;
@@ -732,6 +733,7 @@ const S={
   adminRole:'minister',   // minister | governorate | idara | principal — caps what's visible
   cmpMetric:'attendance', // admin comparison chart: which metric to compare children by
   adminScopeLabel:'Ministry (national)',
+  pilotTab:'overview',    // overview | attendance | assessments | delays | adaptation | print
   reveal:false,           // identifiable view toggle (logged)
   equity:'none',          // none | gender | disability
   auditLog:[],
@@ -1735,37 +1737,63 @@ function restoreA11y(){ try{ const raw=localStorage.getItem('manassa-a11y'); if(
 
 /* ---------- accessibility panel markup ---------- */
 function a11yPanel(){
+  if (!S.a11yOpen) return '';
   const s=S.settings;
+  const AR = s.lang==='ar';
   const seg=(label,name,opts,cur)=>`
-    <div class="a11y-row">
-      <span id="${name}-lbl">${label}</span>
-      <div class="seg" role="group" aria-labelledby="${name}-lbl">
-        ${opts.map((o,i)=>`<button type="button" data-set="${name}" data-val="${o.v}" aria-pressed="${cur===o.v}">${o.t}</button>`).join('')}
+    <div class="a11y-row" style="display:flex;justify-content:space-between;align-items:center;padding:.65rem 0;border-bottom:1px solid var(--line)">
+      <span id="${name}-lbl" style="font-weight:700;font-size:.92rem;color:var(--ink)">${label}</span>
+      <div class="seg" role="group" aria-labelledby="${name}-lbl" style="display:flex;gap:.25rem">
+        ${opts.map((o)=>`<button type="button" data-set="${name}" data-val="${o.v}" aria-pressed="${cur===o.v}" class="${cur===o.v?'on':''}" style="font-weight:800;padding:.3rem .7rem">${o.t}</button>`).join('')}
       </div>
     </div>`;
   const tog=(label,name,on)=>`
-    <div class="a11y-row">
-      <span id="${name}-lbl">${label}</span>
-      <button type="button" class="toggle" data-toggle="${name}" aria-pressed="${on}" aria-labelledby="${name}-lbl">${on?'On':'Off'}</button>
+    <div class="a11y-row" style="display:flex;justify-content:space-between;align-items:center;padding:.65rem 0;border-bottom:1px solid var(--line)">
+      <span id="${name}-lbl" style="font-weight:700;font-size:.92rem;color:var(--ink)">${label}</span>
+      <button type="button" class="toggle ${on?'on':''}" data-toggle="${name}" aria-pressed="${on}" aria-labelledby="${name}-lbl" style="font-weight:900;padding:.35rem .85rem;border-radius:999px;border:1.5px solid ${on?'var(--ok-700,#10B981)':'var(--line)'};background:${on?'var(--ok-700,#10B981)':'var(--paper)'};color:${on?'#FFF':'var(--ink)'}">${on?(AR?'مفعّل ✓':'On ✓'):(AR?'معطل':'Off')}</button>
     </div>`;
   return `
-  <section id="a11y" class="a11y-panel ${S.a11yOpen?'open':''}" aria-label="${t('a11y')} settings" ${S.a11yOpen?'':'aria-hidden="true"'}>
-    <div class="flex between center" style="margin-bottom:.4rem">
-      <h2 style="margin:0;font-size:1.05rem">${t('a11y')}</h2>
-      <button type="button" class="iconbtn" data-close-a11y aria-label="${t('close')}">✕</button>
+  <div class="coach-bg" role="dialog" aria-modal="true" aria-labelledby="a11y-h" style="z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.65);backdrop-filter:blur(6px);position:fixed;inset:0;padding:1rem">
+    <div class="card" style="width:100%;max-width:540px;border-radius:20px;padding:1.4rem 1.6rem;background:var(--paper,#FFF);box-shadow:0 20px 50px rgba(0,0,0,0.25);border:1.5px solid var(--line);max-height:90vh;overflow-y:auto">
+      <div class="flex between center" style="margin-bottom:.85rem;border-bottom:1.5px solid var(--line);padding-bottom:.65rem">
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <span style="font-size:1.6rem;color:var(--ischool-blue)">♿</span>
+          <div>
+            <h2 id="a11y-h" style="margin:0;font-size:1.2rem;font-weight:900">${t('a11y')} ${AR?'وإرشادات استخدام البوابة':'& Portal Accessibility Help'}</h2>
+            <p class="tiny muted" style="margin:.15rem 0 0">${AR?'خيارات وتسهيلات الاستخدام والقراءة الصوتية والتباين':'Visual, Audio & Accessibility Preferences'}</p>
+          </div>
+        </div>
+        <button type="button" class="iconbtn" data-close-a11y aria-label="${t('close')}" style="width:36px;height:36px;font-weight:900">✕</button>
+      </div>
+
+      <p class="small muted" style="margin:0 0 .85rem;background:var(--sand,#FAF7F0);padding:.65rem .85rem;border-radius:10px;border-inline-start:4px solid var(--ischool-blue);line-height:1.55">
+        ${TR('Changes apply instantly across all pages and save automatically for your next session.','تُطبَّق جميع التغييرات فوراً على كافة الصفحات وتُحفظ تلقائياً لجلساتك القادمة.')}
+      </p>
+
+      ${seg(t('textSize'),'textSize',[{v:0,t:'A (عادي)'},{v:1,t:'A+ (كبير)'},{v:2,t:'A++ (أكبر)'}],s.textSize)}
+      ${tog(t('contrast'),'hc',s.hc)}
+      ${tog(t('motion'),'motion',s.motion)}
+      ${tog(t('spacing'),'spacing',s.spacing)}
+      ${tog(t('dark'),'dark',s.dark)}
+      ${tog(t('readaloud'),'readAloud',s.readAloud)}
+      ${seg(t('readSpeed'),'speed',[{v:'slow',t:t('slow')},{v:'normal',t:t('normalSpeed')}],s.speed)}
+      ${seg(t('language'),'lang',[{v:'ar',t:'العربية (RTL)'},{v:'en',t:'English (LTR)'}],s.lang)}
+
+      <!-- Keyboard Shortcuts Help -->
+      <div style="margin-top:1rem;padding-top:.85rem;border-top:1.5px solid var(--line)">
+        <h3 style="margin:0 0 .4rem;font-size:.95rem;font-weight:800">⌨️ ${AR?'دليل اختصارات التصفح والمساعدة':'Keyboard & Accessibility Guide'}</h3>
+        <ul class="small muted" style="margin:0;padding-inline-start:1.1rem;line-height:1.75">
+          <li><strong>Tab / Shift+Tab:</strong> ${AR?'التنقل السلس بين الأزرار والروابط بالترتيب':'Navigate sequentially through controls'}</li>
+          <li><strong>Space / Enter:</strong> ${AR?'تفعيل الخيارات والأزرار التفاعلية':'Activate selected button or toggle'}</li>
+          <li><strong>Esc:</strong> ${AR?'إغلاق النوافذ المنبثقة فوراً':'Close modal dialogs instantly'}</li>
+        </ul>
+      </div>
+
+      <div style="margin-top:1.1rem;display:flex;justify-content:flex-end">
+        <button type="button" class="btn" data-close-a11y style="font-weight:800;padding:.5rem 1.4rem">✓ ${AR?'تم والحفظ':'Done & Close'}</button>
+      </div>
     </div>
-    <p class="small muted" style="margin:0 0 .4rem">${TR('Changes apply instantly and are saved for next time.','تُطبَّق التغييرات فورًا وتُحفظ للمرّة القادمة.')}</p>
-    ${seg(t('textSize'),'textSize',[{v:0,t:'A'},{v:1,t:'A+'},{v:2,t:'A++'}],s.textSize)}
-    ${tog(t('contrast'),'hc',s.hc)}
-    ${tog(t('motion'),'motion',s.motion)}
-    ${tog(t('spacing'),'spacing',s.spacing)}
-    ${tog(t('dark'),'dark',s.dark)}
-    ${tog(t('enterAdvance'),'enterAdvance',s.enterAdvance)}
-    ${tog(t('readaloud'),'readAloud',s.readAloud)}
-    ${seg(t('readSpeed'),'speed',[{v:'slow',t:t('slow')},{v:'normal',t:t('normalSpeed')}],s.speed)}
-    ${seg(t('language'),'lang',[{v:'en',t:'EN'},{v:'ar',t:'ع'}],s.lang)}
-    <p class="small muted" style="margin:.6rem 0 0">${TR('Meets','يستوفي')} <strong>WCAG 2.2 AA</strong>${TR(': keyboard operable, 44px targets, accessible authentication, focus never obscured.','‏: التشغيل بلوحة المفاتيح، وأهداف لمس بحجم 44 بكسل، ومصادقة ميسّرة، وتركيز لا يُحجب أبدًا.')}</p>
-  </section>`;
+  </div>`;
 }
 function settingsView(){
   const s=S.settings;
@@ -2382,13 +2410,28 @@ function teacherShell(inner){
   const curr = teacherClass();
   const AR = S.settings.lang==='ar';
   const classBar = S.route==='teacher' ? `
-    <div class="classbar">
-      <div class="classbar-info">
-        <span class="classbar-name">${uiIcon('teacher', 18)} ${esc(nodeName(curr))}</span>
-        <span class="classbar-meta">${curr.students.length} ${TR('students enrolled','طالبًا مسجلًا')} · <span style="opacity:.85;font-weight:700">${TR('(Active Class)','(الفصل النشط)')}</span></span>
+    <div class="classbar-modern">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <span class="classbar-badge-icon">${uiIcon('teacher', 20)}</span>
+        <div>
+          <div style="font-weight:900;font-size:1.05rem;color:#FFFFFF;display:flex;align-items:center;gap:.5rem">
+            ${esc(nodeName(curr))}
+            <span class="tag gold" style="font-size:.72rem;padding:2px 8px">${TR('Active Class','الفصل النشط')}</span>
+          </div>
+          <div style="font-size:.8rem;color:#94A3B8;margin-top:.15rem">${curr.students.length} ${TR('students enrolled','طالبًا مسجلًا')} · ${TR('Subject: Science','المادة: العلوم')}</div>
+        </div>
       </div>
-      ${TEACHER_CLASSES.length>1 ? `<label class="classbar-switch"><span>${uiIcon('refresh', 14)} ${AR?'تبديل الفصل:':'Switch class:'}</span>
-        <select id="tclass" data-teacher-class aria-label="${AR?'اختر فصلًا':'Choose a class'}">${TEACHER_CLASSES.map(c=>`<option value="${c.id}" ${c.id===S.teacherClassId?'selected':''}>${esc(nodeName(c))}</option>`).join('')}</select></label>` : ''}
+      ${TEACHER_CLASSES.length>1 ? `
+      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+        <span style="font-size:.82rem;font-weight:800;color:#CBD5E1">${uiIcon('refresh', 13)} ${AR?'تبديل الفصل:':'Switch Class:'}</span>
+        <div style="display:inline-flex;background:rgba(255,255,255,0.06);padding:3px;border-radius:999px;gap:4px;border:1px solid rgba(255,255,255,0.15)">
+          ${TEACHER_CLASSES.map(c=>`
+            <button type="button" class="class-pill-btn ${c.id===S.teacherClassId?'active':''}" data-switch-class="${c.id}">
+              ${c.id===S.teacherClassId?'✓ ':''}${esc(nodeName(c))}
+            </button>
+          `).join('')}
+        </div>
+      </div>` : ''}
     </div>` : '';
   return `${appbar()}${nav(items)}<main id="main" tabindex="-1"><div class="wrap">${classBar}${teacherWelcome()}${inner}${devNote()}</div></main>${a11yPanel()}`;
 }
@@ -2733,7 +2776,7 @@ function doSubmitGrades(){
 }
 function teacherAttendance(){
   const cls=teacherClass(), st=cls.students;
-  const states=[['present',t('present'),'ok'],['late',t('late'),'warn'],['absent',t('absent'),'risk'],['excused',t('excused'),'info']];
+  const states=[['present',t('present'),'ok','✓'],['late',t('late'),'warn','🕒'],['absent',t('absent'),'risk','✕'],['excused',t('excused'),'info','ℹ']];
   const dayOff = S.attDay || 0;
   const isPast = dayOff < 0;
   const dayDate = new Date(Date.now() + dayOff*86400000);
@@ -2786,34 +2829,60 @@ function teacherAttendance(){
   // ── TODAY (EDITABLE) VIEW ──
   return `
   ${taskBack()}
-  <div class="page-head"><div>
-    <p class="eyebrow">${esc(nodeName(cls))} · ${fmtDate({weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p><h1>${t('attendance')}</h1>
+  <div class="page-head" style="margin-bottom:1rem"><div>
+    <p class="eyebrow">${esc(nodeName(cls))} · ${fmtDate({weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
+    <h1>${t('attendance')}</h1>
   </div></div>
-  <div class="calm mb"><span class="em" aria-hidden="true">✅</span>
-    <span>${TR("Everyone is already marked <strong>present</strong>. Just tap anyone who is <strong>absent</strong> or <strong>late</strong>.",'الجميع مُسجَّل <strong>حاضرًا</strong>. اضغط فقط على من هو <strong>غائب</strong> أو <strong>متأخر</strong>.')}</span></div>
-  <div class="card" id="att-summary" style="position:sticky;top:.4rem;z-index:5;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;padding:.6rem .9rem">${renderAttCounts({present:st.length,late:0,absent:0,excused:0}, st.length)}</div>
-  <div class="flex between center wrapw" style="gap:.6rem;margin:.5rem 0">
-    <div style="flex:1;min-width:220px">
-      <label class="sr-only" for="att-search">${TR('Find a student by name','ابحث عن طالب بالاسم')}</label>
-      <input id="att-search" type="search" inputmode="search" placeholder="🔍 ${TR('Find a student by name…','ابحث عن طالب بالاسم…')}" autocomplete="off"
-        style="width:100%;font:inherit;padding:.55rem .8rem;border:2px solid var(--line-strong);border-radius:var(--radius)">
-    </div>
-    <p class="muted small" style="margin:0">${TR('You can fix today\u2019s attendance until 2:00 PM the next day. Excuses (medical, travel, etc.) are processed by the admin staff — approved excuses will update automatically.','يمكنك تعديل حضور اليوم حتى الساعة 2:00 ظهرًا من اليوم التالي. الأعذار (طبية، سفر، إلخ) يتولّاها الموظف الإداري — وتظهر تلقائيًّا بعد الاعتماد.')}</p>
-  </div>
-  <button type="button" class="btn sec" style="min-height:44px;margin-bottom:.5rem" onclick="exportAttendanceCsv()">⬇ ${TR('Export attendance CSV','تصدير الحضور CSV')}</button>
-  <p class="muted small" id="att-noresult" style="display:none">${TR('No student matches that name.','لا يوجد طالب بهذا الاسم.')}</p>
-  <div style="display:flex;flex-direction:column;gap:.5rem">
-    ${st.map((s,si)=>`<div class="card" data-att-card="${esc((arName(s)+' '+s.name+' '+String(si+1)).toLowerCase())}" style="padding:.8rem 1rem">
-      <div class="flex between center" style="margin-bottom:.5rem">
-        <strong><span style="color:var(--ink3,#999);font-size:.82rem;margin-inline-end:.4rem">${si+1}.</span>${esc(arName(s))} ${s.hasAcc?`<span class="tag info" title="${TR('Has accommodations','لديه تيسيرات')}">♿</span>`:''}</strong>
-        <span class="small muted" data-att-state="${s.id}" aria-live="polite">✓ ${t('present')}</span>
+
+  <!-- Modern Sticky Header Bar with Instant Live Counters & Mark All Present -->
+  <div class="att-sticky-bar" id="att-summary-bar">
+    <div class="flex between center wrapw" style="gap:.75rem">
+      <div id="att-summary" style="display:flex;gap:.45rem;flex-wrap:wrap;align-items:center">
+        ${renderAttCounts({present:st.length,late:0,absent:0,excused:0}, st.length)}
       </div>
-      <div class="seg" role="radiogroup" aria-label="${TR('Attendance for','حضور')} ${esc(arName(s))}">
-        ${states.map(([v,lbl])=>`<button type="button" role="radio" aria-checked="${v==='present'?'true':'false'}" data-att="${s.id}" data-val="${v}" style="flex:1" ${S.net.status==='nocache'?'disabled':''}>${lbl}</button>`).join('')}
+      <div class="flex center gap-2 wrapw">
+        <button type="button" class="btn sec sm" data-mark-all="present" style="font-weight:800">
+          ⚡ ${TR('Mark all present','تسجيل الكل حاضر')}
+        </button>
+        <button type="button" class="btn sm" data-submit-attendance style="font-weight:800">
+          📨 ${TR('Submit now','إرسال الحضور فوراً')}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex between center wrapw" style="gap:.6rem;margin-bottom:1rem">
+    <div style="flex:1;min-width:240px">
+      <label class="sr-only" for="att-search">${TR('Find a student by name','ابحث عن طالب بالاسم')}</label>
+      <input id="att-search" type="search" inputmode="search" placeholder="🔍 ${TR('Quick search student by name or number…','بحث سريع بالاسم أو الرقم…')}" autocomplete="off"
+        style="width:100%;font:inherit;padding:.6rem .95rem;border:1.5px solid var(--line-strong);border-radius:var(--radius-lg)">
+    </div>
+    <div class="flex center gap-2">
+      <button type="button" class="btn sec sm" style="min-height:38px" onclick="exportAttendanceCsv()">⬇ CSV</button>
+    </div>
+  </div>
+  <p class="muted small" id="att-noresult" style="display:none;padding:.5rem">${TR('No student matches that search.','لا يوجد طالب بهذا الاسم.')}</p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:.85rem">
+    ${st.map((s,si)=>`<div class="att-card-modern" data-att-card="${esc((arName(s)+' '+s.name+' '+String(si+1)).toLowerCase())}">
+      <div class="flex between center" style="gap:.5rem">
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--sand,#F1F5F9);font-weight:900;font-size:.82rem;color:var(--ink-2)">${si+1}</span>
+          <div>
+            <strong style="font-size:.96rem">${esc(arName(s))}</strong>
+            ${s.hasAcc?`<span class="tag info" style="font-size:.68rem;padding:1px 6px;margin-inline-start:.3rem" title="${TR('Has accommodations','لديه تيسيرات')}">♿ ${TR('Accommodated','تيسيرات')}</span>`:''}
+          </div>
+        </div>
+        <span class="small" data-att-state="${s.id}" style="font-weight:800;color:var(--ok-700)">✓ ${t('present')}</span>
+      </div>
+      <div class="seg" role="radiogroup" aria-label="${TR('Attendance for','حضور')} ${esc(arName(s))}" style="display:flex;gap:4px">
+        ${states.map(([v,lbl,tone,ic])=>`<button type="button" role="radio" aria-checked="${v==='present'?'true':'false'}" data-att="${s.id}" data-val="${v}" class="att-pill-btn ${v} ${v==='present'?'active':''}" ${S.net.status==='nocache'?'disabled':''}><span>${ic}</span> ${lbl}</button>`).join('')}
       </div>
     </div>`).join('')}
   </div>
-  <div class="card mt" id="att-bigsummary" style="text-align:center;padding:1rem">${renderAttBig({present:st.length,late:0,absent:0,excused:0}, st.length)}</div>
+
+  <div class="card mt2" id="att-bigsummary" style="text-align:center;padding:1.25rem">${renderAttBig({present:st.length,late:0,absent:0,excused:0}, st.length)}</div>
+  
   ${S.attSubmitted?`<div class="calm mt" style="background:var(--ok-050);border-color:var(--ok-700)"><span class="em" aria-hidden="true">✅</span>
     <span><strong>${TR('Attendance submitted','تم إرسال الحضور')}</strong> ${TR('for today','لهذا اليوم')} (${esc(S.attSubmitted.summary)}). ${TR('You can still change it until 2:00 PM the next day and submit again.','يمكنك تعديله حتى الساعة 2:00 ظهرًا من اليوم التالي وإرساله مجددًا.')}</span></div>
   <div class="card mt" style="border-inline-start:6px solid var(--ok-700)">
@@ -2824,7 +2893,12 @@ function teacherAttendance(){
     </p>
     <p class="small muted" style="margin:.4rem 0 0">${TR('Nothing is lost — if the internet drops, it stays saved here and uploads on its own. The official register stays with the school.','لا شيء يضيع — إن انقطع الإنترنت يبقى محفوظًا هنا ويُرفع تلقائيًّا. ويبقى السجلّ الرسمي لدى المدرسة.')}</p>
   </div>`:''}
-  <div class="mt2"><button class="btn" data-submit-attendance style="font-size:1.05rem;padding:.7rem 1.4rem">📨 ${TR('Submit attendance for today','إرسال حضور اليوم')}</button></div>
+  
+  <div class="mt2" style="text-align:center">
+    <button class="btn" data-submit-attendance style="font-size:1.08rem;padding:.75rem 1.75rem;font-weight:900;box-shadow:0 4px 14px rgba(5,111,236,0.3)">
+      📨 ${TR('Submit attendance for today','إرسال حضور اليوم واعتماده')}
+    </button>
+  </div>
   ${dayHistoryFooter()}
   ${taskNav('assessments', t('assessments'))}`;
 }
@@ -2915,7 +2989,6 @@ function teacherAssessments(){
     <p class="small muted" style="margin:.4rem 0 0">${TR('Run this assessment any day inside the window — you choose the lesson period. It saves offline and syncs on its own.','أجرِ هذا التقييم في أيّ يوم داخل النافذة — أنت تختار الحصّة. يُحفظ دون اتصال ويُزامَن تلقائيًّا.')}</p>
     <p class="small" style="margin:.4rem 0 0"><span class="tag info">${TR('Window','نافذة')} ${w2.n} · ${TR('re-test','إعادة اختبار')}</span> ${TR('opens','تفتح')} ${fmtDateOf(w2.open)}.</p>
   </div>
-  ${liveTelemetry}
   ${(()=>{ const mode=S.assessMode||'manual';
     const tabs=`<div class="seg-tabs" role="tablist" aria-label="${TR('How this assessment is graded','كيف يُصحَّح هذا التقييم')}" style="margin-bottom:.6rem">
       <button type="button" role="tab" aria-selected="${mode==='manual'}" data-assess-mode="manual" class="seg-tab ${mode==='manual'?'on':''}"><span aria-hidden="true">✏️</span> ${TR('Enter grades','أدخل الدرجات')}</button>
@@ -2957,6 +3030,7 @@ function teacherAssessments(){
       </tbody></table>
     </div>`;
   })()}
+  <div class="mt2">${liveTelemetry}</div>
   <div class="mt2"><button class="btn" data-view="assessments" data-release="1" style="font-size:1.05rem;padding:.7rem 1.4rem">📣 ${TR('Release results to students','نشر النتائج للطلاب')}</button></div>
   ${taskNav('gradebook', t('gradebook'))}`;
 }
@@ -3014,38 +3088,162 @@ function studentProgress(){
   const present=days.filter(d=>d==='present').length;
   const absent=days.filter(d=>d==='absent').length;
   const late=days.filter(d=>d==='late').length;
-  const avg=s.avgM;
-  const subs=SUBJECTS.slice().sort((a,b)=>s.mastery[a]-s.mastery[b]);
-  const lowest=subs[0];
+  const attPct=days.length ? Math.round((present/days.length)*100) : 100;
+  const dynRes=calculateDynamicStudentAverage(s, S.dateRange);
+  const overallAvg=dynRes.average || s.avgM;
+  const subs=SUBJECTS.slice().sort((a,b)=>s.mastery[b]-s.mastery[a]);
+  const lowest=subs[subs.length-1];
   const lowName=AR?SUBJECTS_AR[lowest]:lowest;
   const examFor=(su)=>examMarkFor(s,su);
   const read=TR(
-    `My progress report. Attendance summary: ${present} days present out of ${days.length} total school days. Assessment average ${avg} percent. Recommended academic focus: ${lowest}.`,
-    `تقرير تقدمي الدراسي. سجل الحضور: تم إتمام ${present} يومًا دراسيًا من أصل ${days.length} يومًا. متوسط التقييمات ${avg} بالمئة. التوصية الأكاديمية: تعزيز التعلّم في مادة ${lowName}.`);
-  const nbar=(v)=>`<span class="bar" role="img" aria-label="${v}%"><span style="width:${v}%;background:var(--teal-700)"></span></span>`;
+    `My academic progress report. Overall grade average ${overallAvg} percent. Attendance rate ${attPct} percent across ${present} present days. Recommended focus: ${lowest}.`,
+    `تقرير التقدم الدراسي والدرجات. المعدل الأكاديمي العام ${overallAvg} بالمئة. نسبة الحضور ${attPct} بالمئة عبر ${present} يومًا دراسيًا. التوصية الأكاديمية: تعزيز التعلّم في مادة ${lowName}.`);
 
   return `
   <div class="page-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
     <div>
       <p class="eyebrow" style="margin:0 0 .2rem;display:flex;align-items:center;gap:.35rem">${uiIcon('chart', 15)} ${AR?'مسار التعلّم والإنجاز':'Academic Progress'}</p>
-      <h1 style="margin:0;font-size:1.85rem;font-weight:900">${AR?'لوحة المتابعة ونواتج التعلّم':'My Learning Journey'}</h1>
+      <h1 style="margin:0;font-size:1.85rem;font-weight:900">${AR?'لوحة المتابعة ونواتج التعلّم والدرجات':'My Learning & Grades Dashboard'}</h1>
     </div>
     ${speakBtn(read, AR?'الاستماع الصوتي للشاشة':'Listen to screen')}
   </div>
 
   <div class="calm mb" style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:14px;padding:.85rem 1.15rem;display:flex;align-items:center;gap:.75rem">
     <span class="em" aria-hidden="true" style="color:#059669;display:flex;align-items:center">${uiIcon('sparkles', 22)}</span>
-    <span style="color:#065F46;font-size:.92rem;line-height:1.5">${AR?'مساحتك التعليمية الخاصة — نتابع معك خطوات تطورك اليومي ونحتفي بإنجازاتك المستمرة خطوة بخطوة.':'Your personal learning space — tracking your continuous growth and celebrating your progress step by step.'}</span>
+    <span style="color:#065F46;font-size:.92rem;line-height:1.5">${AR?'مساحتك التعليمية الخاصة — نتابع معك خطوات تطورك اليومي ونعرض درجات التقييمات ونسب الإتقان خطوة بخطوة.':'Your personal learning space — tracking your continuous growth, assessment scores, and mastery step by step.'}</span>
   </div>
 
-  <h2 style="margin:1.4rem 0 .75rem;font-size:1.25rem;font-weight:800;display:flex;align-items:center;gap:.5rem">
+  <!-- Top Hero KPI Summary Cards -->
+  <div class="kpi-row mb" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem">
+    <div class="card stat" style="padding:1.1rem 1.25rem;border-top:4px solid var(--ischool-gold,#F59E0B);border-radius:16px;background:#FFF">
+      <div class="flex between center" style="margin-bottom:.4rem">
+        <span class="eyebrow" style="margin:0">${AR?'المعدل الأكاديمي العام':'Overall Academic Average'}</span>
+        <span style="color:var(--ischool-gold)">${uiIcon('award', 20)}</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:.4rem">
+        <span class="num" style="color:#B45309;font-size:2.3rem;font-weight:900">${overallAvg}%</span>
+        <span class="tag ok" style="font-weight:800;font-size:.75rem">${overallAvg>=85?(AR?'متميز / متفوق':'Outstanding'):overallAvg>=65?(AR?'مستقر / على المسار':'On Track'):(AR?'يحتاج دعم':'Needs Support')}</span>
+      </div>
+      <span class="tiny muted" style="margin-top:.3rem;display:block">${AR?'محسوب ديناميكياً من كافة التقييمات المستحقة':'Calculated dynamically from due assessments'}</span>
+    </div>
+
+    <div class="card stat" style="padding:1.1rem 1.25rem;border-top:4px solid var(--ok-700,#10B981);border-radius:16px;background:#FFF">
+      <div class="flex between center" style="margin-bottom:.4rem">
+        <span class="eyebrow" style="margin:0">${AR?'نسبة الحضور المدرسي':'School Attendance Rate'}</span>
+        <span style="color:var(--ok-700)">${uiIcon('check', 20)}</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:.4rem">
+        <span class="num" style="color:var(--ok-700);font-size:2.3rem;font-weight:900">${attPct}%</span>
+        <span class="tag ok" style="font-weight:800;font-size:.75rem">${present} ${AR?'من أصل':'of'} ${days.length} ${AR?'يوم':'days'}</span>
+      </div>
+      <span class="tiny muted" style="margin-top:.3rem;display:block">${AR?'سجل التزام المنتظم بالحصص':'Regular session attendance record'}</span>
+    </div>
+
+    <div class="card stat" style="padding:1.1rem 1.25rem;border-top:4px solid var(--ischool-blue,#056FEC);border-radius:16px;background:#FFF">
+      <div class="flex between center" style="margin-bottom:.4rem">
+        <span class="eyebrow" style="margin:0">${AR?'التقييمات المكتملة':'Completed Assessments'}</span>
+        <span style="color:var(--ischool-blue)">${uiIcon('grading', 20)}</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:.4rem">
+        <span class="num" style="color:var(--ischool-blue);font-size:2.3rem;font-weight:900">${dynRes.count}</span>
+        <span class="tag info" style="font-weight:800;font-size:.75rem">${AR?'تقييمات مرصودة':'Recorded'}</span>
+      </div>
+      <span class="tiny muted" style="margin-top:.3rem;display:block">${AR?'شاملة الاختبارات الأسبوعية والواجبات':'Includes weekly quizzes & tasks'}</span>
+    </div>
+  </div>
+
+  <!-- Section 1: Subject Breakdown & Marks -->
+  <h2 style="margin:1.6rem 0 .85rem;font-size:1.25rem;font-weight:800;display:flex;align-items:center;gap:.5rem">
+    ${uiIcon('grading', 18)} ${AR?'سجل الدرجات ونواتج التعلّم حسب المادة':'Subject Performance & Marks Breakdown'}
+  </h2>
+  
+  <div class="grid mb" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.1rem">
+    ${SUBJECTS.map(su=>{
+      const score = s.mastery[su] || 75;
+      const exm = examFor(su);
+      const subjLabel = AR ? SUBJECTS_AR[su] : su;
+      const tone = score >= 85 ? 'ok' : score >= 60 ? 'info' : 'warn';
+      return `
+      <div class="card" style="border-radius:16px;padding:1.25rem 1.35rem;border-inline-start:5px solid ${score>=85?'#10B981':score>=60?'#056FEC':'#F59E0B'}">
+        <div class="flex between center" style="margin-bottom:.65rem">
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <span style="font-size:1.4rem">${SUBJECT_ICON[su]||'📘'}</span>
+            <strong style="font-size:1.1rem">${subjLabel}</strong>
+          </div>
+          <span class="bignum" style="font-size:1.55rem;font-weight:900;color:${score>=85?'#047857':score>=60?'#0369A1':'#B45309'}">${score}%</span>
+        </div>
+
+        <div style="margin-bottom:.75rem">
+          <div class="flex between" style="font-size:.78rem;color:var(--ink-2);margin-bottom:.25rem">
+            <span>${AR?'نسبة الإتقان الأكاديمي':'Mastery Level'}</span>
+            <strong>${score}%</strong>
+          </div>
+          ${masteryBar(score)}
+        </div>
+
+        <div class="flex between center wrapw" style="gap:.4rem;padding-top:.6rem;border-top:1px solid var(--line);font-size:.82rem">
+          <div>
+            <span class="muted">${AR?'اختبار منتصف العام:':'Midterm Exam:'}</span>
+            <strong style="color:var(--ischool-blue)">${exm.wk || '—'}/100</strong>
+          </div>
+          <div>
+            <span class="muted">${AR?'امتحان نهاية العام:':'Final Exam:'}</span>
+            <strong style="color:var(--ok-700)">${exm.tm || '—'}/100</strong>
+          </div>
+        </div>
+
+        <button type="button" class="btn sm sec" data-open-subject-calc="${su}" style="font-weight:800;font-size:.82rem;margin-top:.75rem;width:100%;justify-content:center;border-color:var(--line-strong)">
+          🧮 ${AR?'تفاصيل المادة وطريقة حساب النسبة':'View Calculation Details'}
+        </button>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <!-- Section 2: Assessments Ledger Table -->
+  <div class="card mb" style="border-radius:16px;padding:1.35rem 1.5rem">
+    <div class="flex between center wrapw" style="margin-bottom:1rem;gap:.5rem">
+      <div>
+        <h3 style="margin:0;font-size:1.15rem">${AR?'📋 كشف التقييمات والدرجات المعتمد':'Official Assessment & Homework Ledger'}</h3>
+        <p class="small muted" style="margin:.2rem 0 0">${AR?'تفاصيل كل تقييم، تاريخ الاستحقاق، والدرجة المرصودة من معلم المادة':'Detailed list of assessments, due dates, and marks recorded by your teachers'}</p>
+      </div>
+      <button class="btn sm sec" onclick="toast('${AR?'تم تحديث الكشف':'Ledger refreshed'}')" style="font-weight:800">
+        🔄 ${AR?'تحديث البيانات':'Refresh'}
+      </button>
+    </div>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>${AR?'اسم التقييم / المهمة':'Assessment Name'}</th>
+            <th>${AR?'تاريخ الاستحقاق':'Due Date'}</th>
+            <th>${AR?'الدرجة المرصودة':'Score Obtained'}</th>
+            <th>${AR?'الوزن النسبي':'Weight'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${dynRes.items.map(it=>`
+            <tr>
+              <th scope="row" style="position:static;font-weight:700">${esc(it.name)}</th>
+              <td>${it.dueDate}</td>
+              <td style="font-weight:900;font-size:1.02rem;color:${it.isOverdueZero?'var(--risk-700)':'var(--teal-700)'}">
+                ${it.score} / ${it.maxMarks}
+              </td>
+              <td>× ${it.weight}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Section 3: Attendance Record & 20-Day Grid -->
+  <h2 style="margin:1.6rem 0 .75rem;font-size:1.25rem;font-weight:800;display:flex;align-items:center;gap:.5rem">
     ${uiIcon('calendar', 18)} ${AR?'سجل الحضور والالتزام المدرسي':'My School Attendance Record'}
   </h2>
 
   <!-- 3 Modern Attendance Metric Tiles -->
   <div class="bigtiles mb" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem">
-    
-    <!-- 1. Present Tile -->
     <div class="bigtile ok" style="border-radius:16px;padding:1.15rem 1rem;background:#FFFFFF;border:1.5px solid #A7F3D0;box-shadow:0 4px 16px rgba(16,185,129,0.06);display:flex;flex-direction:column;align-items:center;text-align:center">
       <span class="em" aria-hidden="true" style="width:48px;height:48px;border-radius:14px;background:#ECFDF5;display:flex;align-items:center;justify-content:center;color:#047857;margin-bottom:.4rem">
         ${uiIcon('check', 24)}
@@ -3054,7 +3252,6 @@ function studentProgress(){
       <span class="word" style="font-size:.95rem;font-weight:800;color:#065F46;margin-top:.3rem">${AR?'أيام الحضور الفعلي':'Days Present'}</span>
     </div>
 
-    <!-- 2. Absent Tile -->
     <div class="bigtile risk" style="border-radius:16px;padding:1.15rem 1rem;background:#FFFFFF;border:1.5px solid #FECDD3;box-shadow:0 4px 16px rgba(239,68,68,0.06);display:flex;flex-direction:column;align-items:center;text-align:center">
       <span class="em" aria-hidden="true" style="width:48px;height:48px;border-radius:14px;background:#FFF1F2;display:flex;align-items:center;justify-content:center;color:#BE123C;margin-bottom:.4rem">
         ${uiIcon('close', 24)}
@@ -3063,7 +3260,6 @@ function studentProgress(){
       <span class="word" style="font-size:.95rem;font-weight:800;color:#9F1239;margin-top:.3rem">${AR?'أيام الغياب غير المسجل':'Days Absent'}</span>
     </div>
 
-    <!-- 3. Late Tile -->
     <div class="bigtile warn" style="border-radius:16px;padding:1.15rem 1rem;background:#FFFFFF;border:1.5px solid #FED7AA;box-shadow:0 4px 16px rgba(245,158,11,0.06);display:flex;flex-direction:column;align-items:center;text-align:center">
       <span class="em" aria-hidden="true" style="width:48px;height:48px;border-radius:14px;background:#FFF7ED;display:flex;align-items:center;justify-content:center;color:#C2410C;margin-bottom:.4rem">
         ${uiIcon('clock', 24)}
@@ -3071,7 +3267,6 @@ function studentProgress(){
       <span class="bignum" style="font-size:2.2rem;font-weight:900;color:#C2410C;line-height:1">${late}</span>
       <span class="word" style="font-size:.95rem;font-weight:800;color:#9A3412;margin-top:.3rem">${AR?'حالات التأخر المسجلة':'Late Arrivals'}</span>
     </div>
-
   </div>
 
   <!-- 20 Days Dot Grid Card -->
@@ -3095,7 +3290,81 @@ function studentProgress(){
     </div>
 
     <div style="margin-top:.85rem;padding-top:.75rem;border-top:1px solid var(--line);font-size:.88rem;color:var(--ink-2)">
-      ${AR ? `سجل الحضور: تم إتمام ${present} من أصل ${days.length} يومًا دراسيًا بنسبة التزام ${Math.round((present/days.length)*100)}% — رائع! استمر في تميزك الأكاديمي.` : `Attendance record: ${present} of ${days.length} school days completed (${Math.round((present/days.length)*100)}% attendance rate) — keep up the great effort!`}
+      ${AR ? `سجل الحضور: تم إتمام ${present} من أصل ${days.length} يومًا دراسيًا بنسبة التزام ${attPct}% — رائع! استمر في تميزك الأكاديمي.` : `Attendance record: ${present} of ${days.length} school days completed (${attPct}% attendance rate) — keep up the great effort!`}
+    </div>
+  </div>
+
+  <!-- Detailed Daily Attendance Entry & Timestamps Log -->
+  <div class="card mb mt" style="border-radius:16px;padding:1.35rem 1.5rem">
+    <div class="flex between center wrapw" style="margin-bottom:1rem;gap:.5rem">
+      <div>
+        <h3 style="margin:0;font-size:1.15rem">${AR?'📋 كشف الحضور والتوقيتات اليومية التفصيلي':'Detailed Daily Entry & Timestamps Log'}</h3>
+        <p class="small muted" style="margin:.2rem 0 0">${AR?'سجل التوقيتات وحالة الانضباط بالحالة والتاريخ والبصمة الإلكترونية':'Daily entry timestamps, attendance status, and excuse records'}</p>
+      </div>
+      <span class="tag ok" style="font-weight:800;font-size:.82rem;padding:.35rem .75rem">🔥 ${AR?'سلسلة الانضباط: ١٤ يومًا متواصلة':'14-Day Attendance Streak'}</span>
+    </div>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>${AR?'اليوم والتاريخ':'Day & Date'}</th>
+            <th>${AR?'توقيت البصمة / الدخول':'Entry Timestamp'}</th>
+            <th>${AR?'حالة الحضور':'Attendance Status'}</th>
+            <th>${AR?'ملاحظات الانضباط والأعذار':'Notes & Excuses'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${days.slice().reverse().map((status, idx)=>{
+            const dayNum = days.length - idx;
+            const dateStr = AR ? `اليوم الدراسي رقم ${dayNum}` : `School Day ${dayNum}`;
+            const timeStr = status === 'present' ? `07:${String(40 + (idx % 12)).padStart(2, '0')} ${AR?'ص':'AM'}`
+                          : status === 'late' ? `08:15 ${AR?'ص':'AM'}` : '—';
+            const note = status === 'present' ? (AR?'حضور مبكر ومنتظم بالحصص':'Punctual & Early Arrival')
+                       : status === 'late' ? (AR?'تأخر عن طابور الصباح':'Late for Morning Assembly')
+                       : idx === 2 ? (AR?'📄 عذر طبي مقبول من ولي الأمر':'📄 Medical Certificate Approved')
+                       : (AR?'غياب غير مسجل بعذر':'Unexcused Absence');
+            return `
+            <tr>
+              <th scope="row" style="position:static;font-weight:700">${dateStr}</th>
+              <td style="font-family:monospace;font-size:.95rem;color:var(--ink-2)">${timeStr}</td>
+              <td>
+                ${status === 'present' 
+                  ? `<span class="tag ok">${AR?'✓ حاضر بالمدرسة':'✓ Present'}</span>`
+                  : status === 'late'
+                  ? `<span class="tag warn">${AR?'⚠️ تأخر مسجل':'⚠️ Late Arrival'}</span>`
+                  : note.includes('عذر') || note.includes('Medical')
+                  ? `<span class="tag info">${AR?'📄 غياب بعذر':'📄 Excused'}</span>`
+                  : `<span class="tag risk">${AR?'❌ غياب غير مسجل':'❌ Unexcused'}</span>`}
+              </td>
+              <td class="small muted">${note}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Medical Excuses & Punctuality Incentive Cards -->
+  <div class="grid mb" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">
+    <div class="card" style="border-radius:16px;padding:1.15rem 1.25rem;border-inline-start:5px solid var(--ischool-blue)">
+      <div class="flex between center" style="margin-bottom:.5rem">
+        <strong style="font-size:1.02rem">📄 ${AR?'سجل الأعذار والتصاريح':'Excuses & Medical Certificates'}</strong>
+        <span class="tag info">${AR?'مقبول ومعتمد':'Approved'}</span>
+      </div>
+      <p class="small muted" style="margin:0 0 .75rem">${AR?'تم اعتماد عذر طبي واحد وتحديث سجل الحضور رسمياً بواسطة إدارة المدرسة.':'One medical certificate approved and updated officially by school leadership.'}</p>
+      <button class="btn sm sec" onclick="toast('${AR?'تقديم طلب عذر جديد متاح عبر ولي الأمر':'Submit new excuse available via parent portal'}')" style="font-weight:800;width:100%">
+        ➕ ${AR?'تقديم عذر جديد عبر ولي الأمر':'Submit Excuse Request'}
+      </button>
+    </div>
+
+    <div class="card" style="border-radius:16px;padding:1.15rem 1.25rem;border-inline-start:5px solid var(--ischool-gold)">
+      <div class="flex between center" style="margin-bottom:.5rem">
+        <strong style="font-size:1.02rem">🏆 ${AR?'حوافز الانضباط والمواظبة':'Attendance Rewards & Badges'}</strong>
+        <span class="tag gold">${AR?'وسام التميز':'Punctuality Award'}</span>
+      </div>
+      <p class="small muted" style="margin:0 0 .75rem">${AR?'حصلت على وسام المواظبة العالية لحضورك أسبوعين متتاليين دون أي تأخير.':'Earned high punctuality badge for 2 full weeks with zero tardiness.'}</p>
+      <div style="font-size:.85rem;font-weight:800;color:#B45309">⭐ ${AR?'مكافأة الانضباط: +٥٠ نقطة تميز في مسار التعلم':'Reward: +50 excellence points'}</div>
     </div>
   </div>
   `;
@@ -3811,8 +4080,9 @@ function contentReader(){
   </div>
   <div class="page-head"><div><p class="eyebrow">${AR?SUBJECTS_AR[c.subject]:c.subject} · ${AR?'الوحدة':'Unit'} ${c.unit||''}</p><h1>${esc(ttl)}</h1></div></div>
   ${(()=>{
-    // Default to lite (HTML) for Science — better for low bandwidth, mobile, accessibility. PDF is secondary.
-    const mode = S.interactiveOpen===c.id ? 'interactive' : S.liteOpen===c.id ? 'lite' : (c.subject==='Science' && S.liteOpen!==c.id && S.pdfOpen!==c.id) ? 'lite' : 'pdf';
+    // Default to lite (HTML) for Science or local file protocol — better for low bandwidth, mobile, accessibility, and local file security.
+    const isFileProto = typeof window !== 'undefined' && window.location && window.location.protocol === 'file:';
+    const mode = S.interactiveOpen===c.id ? 'interactive' : S.liteOpen===c.id ? 'lite' : (S.pdfOpen===c.id ? 'pdf' : 'lite');
     const hasSci = c.subject==='Science';
     const modeDesc = mode==='pdf' ? (AR?'تصفّح كتاب هذه الوحدة كاملًا بالأسفل.':'Browse the full unit textbook below.') :
                      mode==='lite' ? (AR?'النسخة الخفيفة — نفس المحتوى الكامل بدون ملفات ثقيلة.':'Lightweight mode — full content, no heavy files.') :
@@ -3825,12 +4095,23 @@ function contentReader(){
         <p class="small muted" style="margin:.2rem 0 0">${modeDesc}</p>
       </div>
       <div class="seg-tabs" role="tablist" aria-label="${AR?'طريقة العرض':'View mode'}">
+        <button type="button" role="tab" class="seg-tab${mode==='lite'?' on':''}" data-content-view="lite" aria-selected="${mode==='lite'}"><span aria-hidden="true">📶</span> ${AR?'نسخة خفيفة':'Lite'}</button>
         <button type="button" role="tab" class="seg-tab${mode==='pdf'?' on':''}" data-content-view="pdf" aria-selected="${mode==='pdf'}"><span aria-hidden="true">📘</span> PDF</button>
-        ${hasSci?`<button type="button" role="tab" class="seg-tab${mode==='lite'?' on':''}" data-content-view="lite" aria-selected="${mode==='lite'}"><span aria-hidden="true">📶</span> ${AR?'نسخة خفيفة':'Lite'}</button>`:''}
         ${hasSci?`<button type="button" role="tab" class="seg-tab${mode==='interactive'?' on':''}" data-content-view="interactive" aria-selected="${mode==='interactive'}"><span aria-hidden="true">🧪</span> ${AR?'تفاعلي':'Interactive'}</button>`:''}
       </div>
     </div>
-    ${mode==='interactive'?interactiveReader(c,AR):mode==='lite'?liteReader(c,AR):`<a href="#after-pdf-${c.id}" class="skip-pdf">${TR('Skip past the textbook','تخطّي إلى ما بعد الكتاب')}</a><iframe src="${src}#view=FitH" title="${esc(ttl)}" loading="lazy" style="width:100%;height:80vh;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>
+    ${mode==='interactive'?interactiveReader(c,AR):mode==='lite'?liteReader(c,AR):`
+      <div class="card mb" style="border-inline-start:5px solid var(--ischool-blue)">
+        <div class="flex between center wrapw" style="gap:.5rem">
+          <div>
+            <strong>📘 ${esc(ttl)}</strong>
+            <p class="small muted" style="margin:.2rem 0 0">${AR?'الكتاب المدرسي الرسمي للوحدة':'Official Unit Textbook'}</p>
+          </div>
+          <a class="btn sm" href="${src}" target="_blank" rel="noopener">📄 ${AR?'فتح الملف مباشرة':'Open File Direct'}</a>
+        </div>
+      </div>
+      <a href="#after-pdf-${c.id}" class="skip-pdf">${TR('Skip past the textbook','تخطّي إلى ما بعد الكتاب')}</a>
+      ${isFileProto? liteReader(c,AR) : `<iframe src="${src}#view=FitH" title="${esc(ttl)}" loading="lazy" style="width:100%;height:80vh;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>`}
       <span id="after-pdf-${c.id}"></span>
     <p class="tiny muted" style="margin:.4rem 0 0">${AR?'المصدر: كتاب العلوم المتكاملة — الصف الأول الثانوي، الفصل الدراسي الأول.':'Source: Integrated Science — Secondary 1, Term 1.'}</p>`}`;
   })()}
@@ -4446,12 +4727,11 @@ function equityBlock(node,m){
 
 function healthVerdict(m){
   const AR=S.settings.lang==='ar';
-  if(m.attendance>=90 && m.mastery>=65 && m.teacherAttendance>=92 && m.dropoutRiskPct<8)
+  if(m.attendance>=90 && m.mastery>=65 && m.dropoutRiskPct<8)
     return {tone:'ok', label:AR?'على المسار':'On track', line:AR?'المؤشّرات الرئيسية ضمن المستهدف.':'Headline indicators are within target.'};
   const weak=[];
   if(m.attendance<90) weak.push(AR?'حضور الطلاب':'student attendance');
   if(m.mastery<65) weak.push(AR?'متوسّط التقييم':'assessment average');
-  if(m.teacherAttendance<92) weak.push(AR?'حضور المعلّمين':'teacher attendance');
   if(m.dropoutRiskPct>=8) weak.push(AR?'مؤشر الإنذار المبكر':'dropout risk');
   const line=(AR?'يحتاج انتباهًا: ':'Watch: ')+weak.slice(0,2).join(AR?'، ':', ')+'.';
   const risky = m.attendance<80 || m.mastery<50 || m.dropoutRiskPct>=12;
@@ -4506,12 +4786,12 @@ function admKpiTrend(num,label,pct,tone,ctx,series,goodUp){
 }
 function cmpSelect(){ const opt=(v,l)=>`<option value="${v}" ${(S.cmpMetric||'attendance')===v?'selected':''}>${l}</option>`;
   return `<label class="sr-only" for="cmp">${TR('Compare by','قارن حسب')}</label>
-   <select id="cmp" data-cmp style="width:auto;min-width:170px">${opt('attendance',TR('Attendance','الحضور'))}${opt('mastery',TR('Assessment','التقييم'))}${opt('teacher',TR('Teacher presence (support)','حضور المعلّمين (للدعم)'))}${opt('risk',TR('Early-warning indicator','مؤشر الإنذار المبكر'))}</select>`; }
+   <select id="cmp" data-cmp style="width:auto;min-width:170px">${opt('attendance',TR('Attendance','الحضور'))}${opt('mastery',TR('Assessment','التقييم'))}${opt('risk',TR('Early-warning indicator','مؤشر الإنذار المبكر'))}</select>`; }
 function cmpChart(node){
   const kids=node.children||[]; if(!kids.length) return '';
   const metric=S.cmpMetric||'attendance'; const riskM=metric==='risk';
-  const getv=ch=>{const cm=metricsFor(ch); return metric==='attendance'?cm.attendance:metric==='mastery'?cm.mastery:metric==='teacher'?cm.teacherAttendance:cm.dropoutRiskPct;};
-  const toneOf=v=> riskM?(v>=12?'risk':v>=8?'warn':'ok'):metric==='mastery'?(v>=65?'ok':v>=50?'warn':'risk'):metric==='teacher'?(v>=92?'ok':v>=85?'warn':'risk'):(v>=90?'ok':v>=80?'warn':'risk');
+  const getv=ch=>{const cm=metricsFor(ch); return metric==='attendance'?cm.attendance:metric==='mastery'?cm.mastery:cm.dropoutRiskPct;};
+  const toneOf=v=> riskM?(v>=12?'risk':v>=8?'warn':'ok'):metric==='mastery'?(v>=65?'ok':v>=50?'warn':'risk'):(v>=90?'ok':v>=80?'warn':'risk');
   const rows=kids.map(ch=>({ch,v:getv(ch)})).sort((a,b)=> riskM? b.v-a.v : a.v-b.v); // surface where support is most needed
   const avg=Math.round(rows.reduce((s,x)=>s+x.v,0)/rows.length);
   const maxv=Math.max(...rows.map(r=>r.v),100);
@@ -4543,17 +4823,97 @@ function setMapMetric(metric){ ACTIVE_MAP_METRIC = metric; render(); }
 
 /* The map is just another way into the SAME multi-tier drill everything else uses. */
 function mapDrillTo(id){
-  if(!NODE[id]) return;
-  ZOOMED_GOV_ID = (NODE[id].level==='governorate') ? id : ZOOMED_GOV_ID;
-  S.adminPath.push(id); S.reveal=false; render(); focusMain();
+  const target = NODE[id];
+  if(!target) return;
+  const path = [];
+  let cur = target;
+  while(cur){
+    path.unshift(cur.id);
+    cur = cur.parent;
+  }
+  S.adminPath = path;
+  S.reveal = false;
+  render();
+  focusMain();
+  if(typeof announce === 'function'){
+    announce((S.settings.lang === 'ar' ? 'تم الانتقال إلى ' : 'Opened ') + nodeName(target));
+  }
 }
+
+function mapTierLabel(lvl){
+  return TR(
+    {ministry:'National',governorate:'Governorate',idara:'District (Idara)',school:'School',class:'Classroom'}[lvl]||lvl,
+    {ministry:'المستوى الوطني',governorate:'المحافظة (المديرية)',idara:'الإدارة التعليمية',school:'المدرسة',class:'الفصل الدراسي'}[lvl]||lvl
+  );
+}
+
+function mapHoverGov(id, event){
+  const tip = el('map-tip');
+  if(!tip) return;
+  const n = NODE[id];
+  const m = n ? metricsFor(n) : { attendance: 82, mastery: 65 };
+  const AR = S.settings.lang === 'ar';
+  const name = n ? nodeName(n) : id;
+  const metricVal = ACTIVE_MAP_METRIC === 'mastery' ? (m.mastery + '%') : (m.attendance + '%');
+  const metricLbl = ACTIVE_MAP_METRIC === 'mastery' ? TR('Avg. Grade: ','متوسط الدرجات: ') : TR('Attendance: ','نسبة الحضور: ');
+  const fs = n ? flagSummary(n) : { total: 0 };
+  
+  tip.innerHTML = '<div style="font-weight:900;color:var(--ischool-gold);margin-bottom:.2rem">' + esc(name) + '</div>'
+    + '<div style="display:flex;align-items:center;gap:.6rem;font-size:.76rem">'
+    + '<span>' + metricLbl + '<strong>' + metricVal + '</strong></span>'
+    + (fs.total ? '<span class="tag risk" style="font-size:.7rem;padding:0 .3rem">⚑ ' + fs.total + '</span>' : '')
+    + '</div>'
+    + '<div class="tiny muted" style="margin-top:.2rem;color:rgba(255,255,255,0.7)">' + TR('Click to zoom & drill down','اضغط للتعمق والاستعراض') + '</div>';
+  
+  tip.style.display = 'block';
+  if(event) mapMoveGov(event);
+}
+
+function mapMoveGov(event){
+  const tip = el('map-tip');
+  if(!tip || !event) return;
+  const wrap = tip.parentElement;
+  if(!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
+}
+
+function mapLeaveGov(){
+  const tip = el('map-tip');
+  if(tip) tip.style.display = 'none';
+}
+
+function mapChildBubbles(node, vb){
+  const kids = node.children || [];
+  if(!kids.length) return '';
+  const layout = mapBubbleLayout(kids, vb);
+  
+  return layout.map(function(item){
+    const ch = item.it;
+    const cm = metricsFor(ch);
+    const st = mapStyleFor(ch);
+    const val = ACTIVE_MAP_METRIC === 'mastery' ? (cm.mastery + '%') : (cm.attendance + '%');
+    const label = esc(nodeName(ch));
+    const r = Math.max(item.r, 22);
+    
+    return '<g class="map-bubble" role="button" tabindex="0" style="cursor:pointer" onclick="mapDrillTo(\'' + ch.id + '\')" data-drill="' + ch.id + '" transform="translate(' + item.cx.toFixed(1) + ',' + item.cy.toFixed(1) + ')">'
+      + '<circle r="' + r.toFixed(1) + '" fill="' + st.fill + '" fill-opacity="0.9" stroke="#FFFFFF" stroke-width="2" />'
+      + '<text y="-3" text-anchor="middle" fill="#FFFFFF" font-size="' + Math.max(9, Math.round(r*0.35)) + '" font-weight="900" font-family="var(--font)">' + label.slice(0, 16) + '</text>'
+      + '<text y="' + Math.round(r*0.45) + '" text-anchor="middle" fill="var(--ischool-gold)" font-size="' + Math.max(8, Math.round(r*0.3)) + '" font-weight="800" font-family="var(--font)">' + val + '</text>'
+      + '</g>';
+  }).join('');
+}
+
 function mapUp(){
   if(S.adminPath.length>1){ S.adminPath.pop(); ZOOMED_GOV_ID=null; render(); focusMain(); }
 }
 function mapReset(){
   S.adminPath=[adminRoleDef().root]; ZOOMED_GOV_ID=null; render(); focusMain();
 }
-function resetMapZoom(){ mapReset(); }   // kept: nothing else calls the old names, harmless to keep
+function resetMapZoom(){ mapReset(); }
 function zoomToGov(id){ mapDrillTo(id); }
 
 function mapParseBbox(s){ const p=s.split(' ').map(Number); return {x:p[0],y:p[1],w:p[2],h:p[3]}; }
@@ -4635,6 +4995,7 @@ const MAP_METRICS={
     floor:25, warnAt:50, okAt:65 },
 };
 function mapStyleFor(n){
+  if(!n) return {fill:MAP_RAMP_OK, valStr:'85%'};
   if(ACTIVE_MAP_METRIC==='anomalies'){
     const f=flagSummary(n), hot=f.bySev.critical+f.bySev.high;
     return {fill: hot?MAP_RAMP_RISK:(f.total?MAP_RAMP_WARN:MAP_RAMP_OK), valStr: f.total+' '+TR('flags','تنبيه')};
@@ -4642,6 +5003,52 @@ function mapStyleFor(n){
   const def=MAP_METRICS[ACTIVE_MAP_METRIC]||MAP_METRICS.attendance;
   const v=def.value(n);
   return {fill:rampColor(v, def.floor, def.warnAt, def.okAt), valStr:v+def.unit};
+}
+function mapHoverGov(id, ev) {
+  const g = NODE[id];
+  if (!g) return;
+  const tip = document.getElementById('map-tip');
+  if (!tip) return;
+  const m = metricsFor(g);
+  const AR = S.settings.lang === 'ar';
+  const name = esc(nodeName(g));
+  const def = MAP_METRICS[ACTIVE_MAP_METRIC] || MAP_METRICS.attendance;
+  const val = def.value(g) + def.unit;
+  const flags = flagSummary(g);
+  
+  tip.innerHTML = '<div style="font-weight:900;color:var(--ischool-gold,#F59E0B);font-size:.92rem;margin-bottom:.2rem">📍 ' + name + '</div>'
+    + '<div style="display:flex;align-items:center;gap:.6rem;font-size:.8rem;margin-bottom:.25rem">'
+    + '<span>' + def.label + ': <strong style="color:#fff">' + val + '</strong></span>'
+    + (flags.total ? '<span class="tag ' + (flags.bySev.critical ? 'risk' : 'warn') + '" style="font-size:.7rem;padding:1px 5px">' + flags.total + ' ' + TR('flags','تنبيه') + '</span>' : '')
+    + '</div>'
+    + '<div style="font-size:.74rem;color:#94A3B8;border-top:1px solid rgba(255,255,255,0.15);padding-top:.25rem">💡 ' + TR('Click to drill down','اضغط للتعمق والاستعراض المباشر') + '</div>';
+  tip.style.display = 'block';
+  if (ev) mapMoveGov(ev);
+}
+
+function mapMoveGov(ev) {
+  const tip = document.getElementById('map-tip');
+  if (!tip || !ev) return;
+  const wrap = tip.parentElement;
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+  tip.style.left = clamp(x, 90, rect.width - 90) + 'px';
+  if (y < 150) {
+    // In northern Egypt / Delta, show tooltip below cursor so northern governorates stay clearly visible
+    tip.style.top = (y + 18) + 'px';
+    tip.style.transform = 'translate(-50%, 0)';
+  } else {
+    // In central/southern Egypt, show tooltip above cursor
+    tip.style.top = (y - 14) + 'px';
+    tip.style.transform = 'translate(-50%, -100%)';
+  }
+}
+
+function mapLeaveGov() {
+  const tip = document.getElementById('map-tip');
+  if (tip) tip.style.display = 'none';
 }
 
 function renderEgyptInteractiveMap(activeNode) {
@@ -4753,8 +5160,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Gharbiyya",
     "name_ar": "الغربية",
     "d": "M 397.6,74.2 L 397.5,74.5 L 397.2,74.8 L 396.9,75 L 396.8,75.3 L 397.4,76.3 L 398.7,77.1 L 398.9,77.3 L 399,77.7 L 399,78.2 L 398.6,78.9 L 397.4,80.3 L 397.3,80.5 L 397.3,80.8 L 397.4,81 L 397.8,81.2 L 399,81.4 L 399.3,81.6 L 399.6,82.2 L 399.6,82.5 L 399.2,83.4 L 398.9,83.7 L 397.8,84.4 L 397.7,84.7 L 397.8,84.9 L 398.1,85 L 398.6,84.8 L 398.9,84.5 L 399.6,84.3 L 400.6,84.6 L 400.7,84.9 L 400.5,85.2 L 399.4,85.8 L 397.3,87.6 L 397.2,88.2 L 397.4,88.7 L 397.6,88.8 L 397.9,88.8 L 398.3,88.7 L 398.7,88.4 L 398.8,88.4 L 399.3,88.7 L 399.7,89.2 L 399.8,89.4 L 399.7,89.9 L 399.2,90.5 L 398.5,90.8 L 398,90.8 L 397.7,91.2 L 397.8,91.6 L 398.5,92.4 L 398.8,92.6 L 399.2,92.7 L 400.1,93.5 L 400.2,93.6 L 400.2,93.9 L 403.9,93.7 L 405.4,92.4 L 408.6,92.5 L 411.5,94.6 L 415.4,94.8 L 416.5,96.7 L 420.1,96.9 L 422.3,97.9 L 424.3,100 L 426.5,100.5 L 427.1,100.6 L 427.8,100.2 L 428,99.7 L 428,98.3 L 428.4,97.2 L 428.6,96.8 L 428.9,95.8 L 428.9,94.8 L 428.5,93 L 427.9,92.2 L 427.4,91.8 L 427.3,91.6 L 427.3,91.3 L 427.6,90.8 L 427.5,90.3 L 427.2,90 L 426.7,89.8 L 426.3,89.4 L 425.8,89 L 425.8,88.7 L 426.4,87.9 L 426.5,87.2 L 426.3,86.4 L 425.5,85.1 L 425.3,84 L 425.4,83.7 L 425.7,83.4 L 426,83.4 L 426.9,83.5 L 427.1,83.5 L 427.4,83.2 L 427.4,82.4 L 427.2,81.8 L 426.4,81.4 L 426.3,81.2 L 426.4,81 L 427.1,80.9 L 427.1,80.6 L 427,80.4 L 426.4,80.1 L 426.2,79.9 L 426.5,79.5 L 427.4,79.1 L 427.9,78.7 L 428,78 L 427.8,77.6 L 427.3,77.3 L 426.7,76.7 L 426.6,76.6 L 426.6,76.3 L 427.6,75.3 L 429.5,74.6 L 430,74.5 L 430.4,73.7 L 426.8,73.5 L 424.6,74 L 424.3,73 L 425.7,70.4 L 426.2,68.3 L 425,67.1 L 422.4,66.7 L 420.7,68.4 L 417.9,67.7 L 414.8,67.5 L 415.5,70 L 414.6,71.7 L 413.5,74.2 L 407.6,74.2 L 406.4,75.7 L 404,75 L 402.4,75.7 L 399.7,75.7 L 398.3,74.2 L 397.6,74.2 Z",
-    "cx": 413.1,
-    "cy": 84,
+    "cx": 412,
+    "cy": 78,
     "labs": 30,
     "students": 62000,
     "bbox": "387 57 54 54"
@@ -4841,8 +5248,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Giza",
     "name_ar": "الجيزة",
     "d": "M 188.1,282.3 L 267.9,282.2 L 279.9,266.8 L 305.2,257.1 L 326.2,243.5 L 336.8,224 L 338,214.1 L 342.3,195.6 L 385.6,161.3 L 393.7,156.6 L 413.5,155.6 L 419.5,173.5 L 425,173.5 L 426.4,177.9 L 425.5,180.9 L 424.4,181.8 L 426.1,185.3 L 425,189.5 L 440.4,194.5 L 461.5,200.5 L 463.4,200.8 L 467.1,153.5 L 460.6,153.2 L 456.5,152.2 L 444.3,152.5 L 440.3,153.2 L 432.1,153.2 L 430.8,152.6 L 429.5,152.4 L 429.9,151.6 L 429.9,151.1 L 430.1,150 L 429.7,148.1 L 429.9,147.7 L 429.9,146.5 L 429.2,144.7 L 429.3,143 L 428.9,141.6 L 428.6,141.1 L 426.4,139.7 L 426.3,139.2 L 425.9,138.4 L 425.8,137.9 L 425.9,137.6 L 425.5,136.5 L 425.5,135.5 L 426,134.8 L 426.1,134.5 L 425.7,132.8 L 426.1,131.8 L 426.1,131.4 L 424.9,129.5 L 423.9,129 L 423,128.7 L 422.1,128.2 L 420.8,126.4 L 419.6,125.9 L 419.3,125.6 L 417.8,124.7 L 417.3,124 L 416.6,123.7 L 416.3,123.4 L 415.3,123.4 L 414.3,124 L 413.7,124.2 L 413.3,124.6 L 412.9,124.8 L 411.5,124.2 L 410.9,123.5 L 410.2,122.5 L 410.2,121.6 L 409.9,121.1 L 410,120.5 L 409.6,119.9 L 409.4,119.3 L 409.2,119.2 L 408.5,119.1 L 407.8,119.3 L 407.3,119.3 L 406.9,119.1 L 406.8,118.7 L 407.3,117.6 L 407.3,116.4 L 407,116 L 405.9,115.7 L 404.5,115.6 L 403.8,116.1 L 402.9,116.6 L 402.6,116.6 L 402.1,116.5 L 399.1,119.9 L 395.7,122.6 L 370.3,142.5 L 325.3,165.9 L 274.2,213 L 216.9,224.8 L 188.1,282.3 Z",
-    "cx": 403.2,
-    "cy": 150.8,
+    "cx": 395,
+    "cy": 156,
     "labs": 64,
     "students": 142000,
     "bbox": "178 106 299 187"
@@ -4852,8 +5259,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Monufia",
     "name_ar": "المنوفية",
     "d": "M 400.2,93.9 L 400,94.7 L 399.2,96 L 399.9,97.4 L 400.1,97.9 L 400.2,98.3 L 400.2,98.7 L 400.7,99.6 L 401.1,100 L 401.5,100 L 402,99.8 L 402.2,100 L 402,100.3 L 400.9,101.3 L 400.8,101.6 L 400.8,102 L 401,102.6 L 401.2,102.6 L 401.9,102.7 L 402.6,102.4 L 403.1,102.8 L 402.7,103.8 L 402.2,104.3 L 402.1,104.6 L 401.8,105.2 L 402.3,106.9 L 400.9,107.6 L 396.7,107.9 L 393.3,112.1 L 388.9,109.1 L 391.4,107.1 L 390.9,106.1 L 384.8,105.9 L 382.9,107.6 L 380.9,115.7 L 383.8,116.8 L 394.5,122.4 L 395.7,122.6 L 399.1,119.9 L 402.1,116.5 L 402.6,116.6 L 402.9,116.6 L 403.8,116.1 L 404.5,115.6 L 405.9,115.7 L 407,116 L 407.3,116.4 L 407.3,117.6 L 406.8,118.7 L 406.9,119.1 L 407.3,119.3 L 407.8,119.3 L 408.5,119.1 L 409.2,119.2 L 409.4,119.3 L 409.6,119.9 L 410,120.5 L 409.9,121.1 L 410.2,121.6 L 410.2,122.5 L 410.9,123.5 L 411.5,124.2 L 412.9,124.8 L 413.3,124.6 L 413.7,124.2 L 414.3,124 L 415.3,123.4 L 416.3,123.4 L 416.6,123.7 L 417.3,124 L 417.8,124.7 L 419.3,125.6 L 419.6,125.9 L 420.8,126.4 L 420.4,125.5 L 419.6,124.3 L 418.9,123.7 L 418.8,123.4 L 418.7,122.6 L 418.5,122.1 L 418.5,121.7 L 419.1,120.8 L 419.2,120.3 L 418.9,120 L 418,119.8 L 417.5,119.3 L 417.5,118.9 L 418.5,117.7 L 418.7,117 L 418.6,116.7 L 418.3,116.5 L 417.2,116 L 416.7,115 L 415.6,114.1 L 415.4,113.7 L 415.7,113.4 L 416.1,113.3 L 416.3,113.4 L 416.6,113.8 L 417.4,114.1 L 417.6,114.2 L 417.9,114.1 L 418.1,113.3 L 418.6,112.7 L 418.9,112.1 L 418.7,111.7 L 418,111.2 L 417.9,110.9 L 417.8,110.7 L 418,110.4 L 418.3,110.4 L 418.7,110.5 L 418.9,110.8 L 419.3,111.8 L 419.4,112 L 419.7,112.1 L 419.9,112 L 420.1,111.8 L 420.2,111.5 L 420.3,110.5 L 419.7,109.7 L 419.7,109.3 L 420.1,109.1 L 421.9,108.6 L 422.7,108.2 L 422.8,108 L 422.8,106.9 L 423.2,106.2 L 424.2,105.5 L 424.9,105.3 L 425.5,104.8 L 425.7,104.5 L 425.8,103.9 L 425.6,102.8 L 425.7,102.3 L 426.2,102.2 L 427.2,102.7 L 427.5,102.7 L 427.6,102.7 L 427.7,102.3 L 427.2,101.9 L 426.8,101.3 L 426.8,101 L 427.1,100.6 L 426.5,100.5 L 424.3,100 L 422.3,97.9 L 420.1,96.9 L 416.5,96.7 L 415.4,94.8 L 411.5,94.6 L 408.6,92.5 L 405.4,92.4 L 403.9,93.7 L 400.2,93.9 Z",
-    "cx": 412.1,
-    "cy": 110.9,
+    "cx": 398,
+    "cy": 106,
     "labs": 28,
     "students": 56000,
     "bbox": "371 82 67 54"
@@ -4863,8 +5270,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Beheira",
     "name_ar": "البحيرة",
     "d": "M 370.3,142.5 L 395.7,122.6 L 394.5,122.4 L 383.8,116.8 L 380.9,115.7 L 382.9,107.6 L 384.8,105.9 L 390.9,106.1 L 391.4,107.1 L 388.9,109.1 L 393.3,112.1 L 396.7,107.9 L 400.9,107.6 L 402.3,106.9 L 401.8,105.2 L 402.1,104.6 L 402.2,104.3 L 402.7,103.8 L 403.1,102.8 L 402.6,102.4 L 401.9,102.7 L 401.2,102.6 L 401,102.6 L 400.8,102 L 400.8,101.6 L 400.9,101.3 L 402,100.3 L 402.2,100 L 402,99.8 L 401.5,100 L 401.1,100 L 400.7,99.6 L 400.2,98.7 L 400.2,98.3 L 400.1,97.9 L 399.9,97.4 L 399.2,96 L 400,94.7 L 400.2,93.9 L 400.2,93.6 L 400.1,93.5 L 399.2,92.7 L 398.8,92.6 L 398.5,92.4 L 397.8,91.6 L 397.7,91.2 L 398,90.8 L 398.5,90.8 L 399.2,90.5 L 399.7,89.9 L 399.8,89.4 L 399.7,89.2 L 399.3,88.7 L 398.8,88.4 L 398.7,88.4 L 398.3,88.7 L 397.9,88.8 L 397.6,88.8 L 397.4,88.7 L 397.2,88.2 L 397.3,87.6 L 399.4,85.8 L 400.5,85.2 L 400.7,84.9 L 400.6,84.6 L 399.6,84.3 L 398.9,84.5 L 398.6,84.8 L 398.1,85 L 397.8,84.9 L 397.7,84.7 L 397.8,84.4 L 398.9,83.7 L 399.2,83.4 L 399.6,82.5 L 399.6,82.2 L 399.3,81.6 L 399,81.4 L 397.8,81.2 L 397.4,81 L 397.3,80.8 L 397.3,80.5 L 397.4,80.3 L 398.6,78.9 L 399,78.2 L 399,77.7 L 398.9,77.3 L 398.7,77.1 L 397.4,76.3 L 396.8,75.3 L 396.9,75 L 397.2,74.8 L 397.5,74.5 L 397.6,74.2 L 397.5,73.7 L 397.1,73 L 396.8,72.9 L 395.7,72.6 L 395.5,72.4 L 395,71.8 L 395.4,70.5 L 395.4,69.4 L 395.3,69.1 L 395.1,68.8 L 394.6,68.4 L 392.4,67 L 391.8,66.7 L 391.3,66.3 L 389.1,64.1 L 388.8,63.7 L 388.6,62.8 L 388.3,62.3 L 387,61.6 L 386.2,60.8 L 385.7,60.5 L 385.5,60.4 L 385.2,60.4 L 384.4,61.1 L 384.1,61.2 L 383.3,60.8 L 383,60.4 L 383,60 L 383.3,59.1 L 383.3,58.7 L 383.1,58.6 L 382.3,58.8 L 381.9,58.6 L 381.7,58.5 L 381.5,58 L 381.7,57.4 L 382.9,56 L 383,54.9 L 382.9,54.4 L 383,52.6 L 382.9,52.3 L 381.9,51.5 L 380.8,51.1 L 380.4,51 L 380.2,51.2 L 379.7,51.8 L 379.5,51.9 L 379.3,51.8 L 379,50.9 L 378.9,49.7 L 378.5,49.2 L 378.2,49.1 L 377.8,49.2 L 377.4,49.2 L 377,49.1 L 377,48.9 L 377.1,48.7 L 377.5,46.9 L 377.5,46.1 L 377.2,45.6 L 376.9,45.3 L 376.5,45.1 L 375.4,45 L 374.8,44.9 L 373.9,43.9 L 373.8,44 L 373.4,43.4 L 373.2,44.3 L 373.3,44.3 L 373.3,44.4 L 373.2,44.5 L 373.1,44.5 L 373.2,44.6 L 373.1,44.8 L 373,44.8 L 373.2,44.9 L 373.1,45.2 L 371.4,48.9 L 370.1,51.2 L 369.9,51.3 L 369.7,51.3 L 369.9,51.4 L 369.7,51.6 L 369.6,51.6 L 369.5,51.4 L 369.6,51.1 L 369.4,51.4 L 369.5,51.5 L 369.6,51.7 L 369.6,51.8 L 368.8,52.6 L 367.3,53.7 L 365.8,54.6 L 363.8,55.5 L 362.5,55.9 L 362.4,55.9 L 362.3,55.7 L 362.4,55.9 L 362.5,55.9 L 362.6,55.9 L 362.5,55.9 L 362.6,56 L 362.4,56 L 362.3,55.9 L 362.2,55.9 L 362.2,55.7 L 362.2,55.7 L 362.2,56 L 362.3,56.2 L 362.1,56.1 L 362.2,55.8 L 362.1,55.9 L 361.2,56.1 L 361.2,55.9 L 361.2,56.1 L 360.9,55.9 L 360.8,55.9 L 360.9,55.9 L 360.9,56 L 360.7,56 L 360.7,55.9 L 360.8,55.8 L 360.6,55.9 L 360.6,56 L 360.5,56 L 360.5,55.9 L 360,55.9 L 358.9,56 L 358.7,55.7 L 357.4,55.6 L 356.7,55.2 L 357,60.7 L 352.3,66.4 L 346.2,80 L 343.4,81.7 L 349.1,90.8 L 347.5,92.6 L 350.8,100.3 L 334.7,107.6 L 328.2,114.4 L 328.1,120.6 L 370.3,142.5 Z",
-    "cx": 382.7,
-    "cy": 72.2,
+    "cx": 366,
+    "cy": 82,
     "labs": 32,
     "students": 68000,
     "bbox": "318 33 95 119"
@@ -4874,8 +5281,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Cairo",
     "name_ar": "القاهرة",
     "d": "M 462.9,116.8 L 450.4,124.7 L 448.1,126.4 L 441.5,126.7 L 438.3,127.3 L 436,127.4 L 430.8,129 L 426.1,131.4 L 426.1,131.8 L 425.7,132.8 L 426.1,134.5 L 426,134.8 L 425.5,135.5 L 425.5,136.5 L 425.9,137.6 L 425.8,137.9 L 425.9,138.4 L 426.3,139.2 L 426.4,139.7 L 428.6,141.1 L 428.9,141.6 L 429.3,143 L 429.2,144.7 L 429.9,146.5 L 429.9,147.7 L 429.7,148.1 L 430.1,150 L 429.9,151.1 L 429.9,151.6 L 429.5,152.4 L 430.8,152.6 L 432.1,153.2 L 440.3,153.2 L 444.3,152.5 L 456.5,152.2 L 460.6,153.2 L 467.1,153.5 L 467.3,137.9 L 465,122.7 L 462.9,116.8 Z",
-    "cx": 436.8,
-    "cy": 139.3,
+    "cx": 444,
+    "cy": 136,
     "labs": 85,
     "students": 184000,
     "bbox": "416 107 62 57"
@@ -4885,8 +5292,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Qalyubia",
     "name_ar": "القليوبية",
     "d": "M 426.1,131.4 L 430.8,129 L 436,127.4 L 438.3,127.3 L 441.5,126.7 L 448.1,126.4 L 450.4,124.7 L 443.4,122.2 L 437,118.9 L 435.1,118.9 L 433.8,116.9 L 433.9,114.7 L 429,109.3 L 431.8,103.6 L 433.8,101.6 L 433.6,101 L 430,101.6 L 428.6,100.6 L 427.1,100.6 L 426.8,101 L 426.8,101.3 L 427.2,101.9 L 427.7,102.3 L 427.6,102.7 L 427.5,102.7 L 427.2,102.7 L 426.2,102.2 L 425.7,102.3 L 425.6,102.8 L 425.8,103.9 L 425.7,104.5 L 425.5,104.8 L 424.9,105.3 L 424.2,105.5 L 423.2,106.2 L 422.8,106.9 L 422.8,108 L 422.7,108.2 L 421.9,108.6 L 420.1,109.1 L 419.7,109.3 L 419.7,109.7 L 420.3,110.5 L 420.2,111.5 L 420.1,111.8 L 419.9,112 L 419.7,112.1 L 419.4,112 L 419.3,111.8 L 418.9,110.8 L 418.7,110.5 L 418.3,110.4 L 418,110.4 L 417.8,110.7 L 417.9,110.9 L 418,111.2 L 418.7,111.7 L 418.9,112.1 L 418.6,112.7 L 418.1,113.3 L 417.9,114.1 L 417.6,114.2 L 417.4,114.1 L 416.6,113.8 L 416.3,113.4 L 416.1,113.3 L 415.7,113.4 L 415.4,113.7 L 415.6,114.1 L 416.7,115 L 417.2,116 L 418.3,116.5 L 418.6,116.7 L 418.7,117 L 418.5,117.7 L 417.5,118.9 L 417.5,119.3 L 418,119.8 L 418.9,120 L 419.2,120.3 L 419.1,120.8 L 418.5,121.7 L 418.5,122.1 L 418.7,122.6 L 418.8,123.4 L 418.9,123.7 L 419.6,124.3 L 420.4,125.5 L 420.8,126.4 L 422.1,128.2 L 423,128.7 L 423.9,129 L 424.9,129.5 L 426.1,131.4 Z",
-    "cx": 423.6,
-    "cy": 113.8,
+    "cx": 432,
+    "cy": 116,
     "labs": 26,
     "students": 54000,
     "bbox": "405 91 55 51"
@@ -4896,8 +5303,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Dakahlia",
     "name_ar": "الدقهلية",
     "d": "M 427.1,100.6 L 428.6,100.6 L 430,101.6 L 433.6,101 L 434.2,100.5 L 435.3,100.3 L 435.8,100 L 436.1,99.5 L 435.5,97.8 L 436.5,95.9 L 435.5,90.8 L 436.4,88.7 L 441.5,87.7 L 447.9,87.5 L 451.3,85.4 L 451.5,81.8 L 454.6,80.4 L 455.9,77.2 L 460.1,72.3 L 466.2,71.4 L 472.1,69.9 L 474.6,69.5 L 474.9,69.3 L 476.1,68.7 L 485,54.7 L 485,54.6 L 485,54.6 L 484.9,54.5 L 484.9,54.6 L 484.8,54.6 L 484.7,54.5 L 484.6,54.5 L 483.3,53.8 L 482.7,53.3 L 482.6,53.2 L 481.1,52.2 L 477.2,50.3 L 473.4,47.4 L 472.8,46.6 L 472.5,46 L 472.5,45.9 L 471.6,44.9 L 471.5,44.5 L 471.6,43.9 L 471.4,44.4 L 471.4,44.6 L 471.3,44.5 L 471.2,44.1 L 471.1,44.1 L 470.8,43.4 L 470.4,42.1 L 470.3,42 L 460.4,60.8 L 458.2,62.9 L 454.7,63.7 L 449.6,66.6 L 449.2,65.3 L 449.3,61.9 L 450.9,61.1 L 451.4,58.9 L 447.4,57.3 L 441.9,54.6 L 445.5,51.2 L 447.3,49.3 L 449.4,44.6 L 446.7,45 L 446.3,44.8 L 445.8,44.8 L 443.9,44.4 L 441.8,43.7 L 440.8,43.2 L 439.4,42.6 L 436.6,41.1 L 435.9,40.6 L 435.1,40.3 L 434.2,46.2 L 432.6,49.4 L 429.1,47.8 L 430.2,61.2 L 429,63.6 L 430.6,66.2 L 428.5,67.3 L 426.2,68.3 L 425.7,70.4 L 424.3,73 L 424.6,74 L 426.8,73.5 L 430.4,73.7 L 430,74.5 L 429.5,74.6 L 427.6,75.3 L 426.6,76.3 L 426.6,76.6 L 426.7,76.7 L 427.3,77.3 L 427.8,77.6 L 428,78 L 427.9,78.7 L 427.4,79.1 L 426.5,79.5 L 426.2,79.9 L 426.4,80.1 L 427,80.4 L 427.1,80.6 L 427.1,80.9 L 426.4,81 L 426.3,81.2 L 426.4,81.4 L 427.2,81.8 L 427.4,82.4 L 427.4,83.2 L 427.1,83.5 L 426.9,83.5 L 426,83.4 L 425.7,83.4 L 425.4,83.7 L 425.3,84 L 425.5,85.1 L 426.3,86.4 L 426.5,87.2 L 426.4,87.9 L 425.8,88.7 L 425.8,89 L 426.3,89.4 L 426.7,89.8 L 427.2,90 L 427.5,90.3 L 427.6,90.8 L 427.3,91.3 L 427.3,91.6 L 427.4,91.8 L 427.9,92.2 L 428.5,93 L 428.9,94.8 L 428.9,95.8 L 428.6,96.8 L 428.4,97.2 L 428,98.3 L 428,99.7 L 427.8,100.2 L 427.1,100.6 Z M 470.4,41.6 L 470.7,42 L 472,42.8 L 472.3,43.3 L 472.4,43.4 L 472.5,43.7 L 472.4,44 L 472.5,43.8 L 472.3,44.2 L 472.4,44.4 L 472.6,44.1 L 472.5,44.4 L 472.6,44.2 L 472.7,43.5 L 472.8,44.1 L 472.7,44.6 L 472.6,44.8 L 472.8,44.9 L 473,44.4 L 472.7,43.4 L 472.3,43 L 471.6,42.5 L 471.6,42.2 L 471.1,42 L 470.5,41.5 L 470.4,41.6 Z",
-    "cx": 448.2,
-    "cy": 66.8,
+    "cx": 448,
+    "cy": 66,
     "labs": 38,
     "students": 78000,
     "bbox": "414 30 81 81"
@@ -4907,8 +5314,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Damietta",
     "name_ar": "دمياط",
     "d": "M 470.3,42 L 469.9,41.1 L 470.4,41.6 L 470.5,41.5 L 470.4,41.4 L 470.4,41.1 L 470.2,40.9 L 469.3,40.3 L 468.9,40.2 L 467.7,40.2 L 467.4,40 L 466.1,40 L 465.5,39.9 L 464.8,39.9 L 464.8,40 L 464.7,40 L 464.7,39.9 L 463.6,39.8 L 463.3,39.5 L 463.1,39.8 L 463,39.9 L 462.9,39.9 L 462.9,40 L 462.8,39.9 L 462.7,40.1 L 461.1,41.1 L 458.5,42.3 L 458.6,42.4 L 458.2,42.6 L 458.1,42.8 L 458.2,43.1 L 458.4,43.3 L 458.7,43.4 L 459,43.7 L 458.9,43.8 L 458.7,43.6 L 458.6,43.9 L 459,44.3 L 458.9,44.4 L 458,43.6 L 457.8,43.8 L 457.7,43.6 L 457.8,43.1 L 457.7,43 L 457.9,42.6 L 457.8,42.6 L 457.9,42.4 L 455.6,43.2 L 449.4,44.6 L 447.3,49.3 L 445.5,51.2 L 441.9,54.6 L 447.4,57.3 L 451.4,58.9 L 450.9,61.1 L 449.3,61.9 L 449.2,65.3 L 449.6,66.6 L 454.7,63.7 L 458.2,62.9 L 460.4,60.8 L 470.3,42 Z",
-    "cx": 460.1,
-    "cy": 45.2,
+    "cx": 462,
+    "cy": 43,
     "labs": 16,
     "students": 31000,
     "bbox": "432 30 49 47"
@@ -4918,8 +5325,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Kafr el-Sheikh",
     "name_ar": "كفر الشيخ",
     "d": "M 426.2,68.3 L 428.5,67.3 L 430.6,66.2 L 429,63.6 L 430.2,61.2 L 429.1,47.8 L 432.6,49.4 L 434.2,46.2 L 435.1,40.3 L 432.1,38.8 L 430,37.9 L 426.3,36.7 L 424,36.3 L 423.7,36.3 L 423.3,36 L 422.8,35.8 L 422,35.7 L 421.5,35.5 L 420.6,35.4 L 420.4,35.3 L 420.4,35.1 L 420.2,35.1 L 420.1,35 L 419.9,35.1 L 419.8,35 L 419.6,35 L 418.2,34.8 L 415.7,34.9 L 414.9,35 L 414,35.2 L 413.7,35.2 L 413.1,35.4 L 412.7,35.4 L 412.4,35.5 L 411.3,35.8 L 410.3,35.9 L 410.4,36.1 L 410.9,36.2 L 410.8,36.3 L 410.3,36.2 L 410.3,35.8 L 410.3,36.1 L 410,36.2 L 409.9,36.1 L 410.2,36 L 410.2,35.8 L 410.1,36 L 408.3,36.7 L 404.9,37.6 L 403.8,37.8 L 395,40.8 L 391.1,42 L 384.6,43.8 L 382,44.2 L 379.9,44 L 378.3,44 L 378,43.8 L 377.8,43.6 L 377.9,43.5 L 377.5,43.5 L 377.4,43.4 L 377.4,43.3 L 377,43.3 L 376.9,43.2 L 376.9,43.1 L 376.9,43.2 L 376.6,43.2 L 376.4,43.1 L 376.4,42.9 L 376.3,43 L 375.9,43 L 375.8,42.8 L 375.8,42.7 L 375.8,42.8 L 375.6,42.8 L 375.3,42.7 L 375.2,42.4 L 374.2,42.7 L 373.9,42.8 L 373.7,43.2 L 374.1,43.9 L 373.9,43.9 L 374.8,44.9 L 375.4,45 L 376.5,45.1 L 376.9,45.3 L 377.2,45.6 L 377.5,46.1 L 377.5,46.9 L 377.1,48.7 L 377,48.9 L 377,49.1 L 377.4,49.2 L 377.8,49.2 L 378.2,49.1 L 378.5,49.2 L 378.9,49.7 L 379,50.9 L 379.3,51.8 L 379.5,51.9 L 379.7,51.8 L 380.2,51.2 L 380.4,51 L 380.8,51.1 L 381.9,51.5 L 382.9,52.3 L 383,52.6 L 382.9,54.4 L 383,54.9 L 382.9,56 L 381.7,57.4 L 381.5,58 L 381.7,58.5 L 381.9,58.6 L 382.3,58.8 L 383.1,58.6 L 383.3,58.7 L 383.3,59.1 L 383,60 L 383,60.4 L 383.3,60.8 L 384.1,61.2 L 384.4,61.1 L 385.2,60.4 L 385.5,60.4 L 385.7,60.5 L 386.2,60.8 L 387,61.6 L 388.3,62.3 L 388.6,62.8 L 388.8,63.7 L 389.1,64.1 L 391.3,66.3 L 391.8,66.7 L 392.4,67 L 394.6,68.4 L 395.1,68.8 L 395.3,69.1 L 395.4,69.4 L 395.4,70.5 L 395,71.8 L 395.5,72.4 L 395.7,72.6 L 396.8,72.9 L 397.1,73 L 397.5,73.7 L 397.6,74.2 L 398.3,74.2 L 399.7,75.7 L 402.4,75.7 L 404,75 L 406.4,75.7 L 407.6,74.2 L 413.5,74.2 L 414.6,71.7 L 415.5,70 L 414.8,67.5 L 417.9,67.7 L 420.7,68.4 L 422.4,66.7 L 425,67.1 L 426.2,68.3 Z",
-    "cx": 396.3,
-    "cy": 50.7,
+    "cx": 396,
+    "cy": 50,
     "labs": 24,
     "students": 48000,
     "bbox": "364 25 81 61"
@@ -4929,8 +5336,8 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Port Said",
     "name_ar": "بورسعيد",
     "d": "M 491.5,61 L 491.6,66 L 493,61.1 L 491.5,61 Z M 507.9,69.1 L 506.5,68.4 L 503.7,66.2 L 503.5,65.4 L 503.4,65.4 L 503,65.5 L 503.4,66 L 502.7,66.3 L 502.1,66.1 L 502.5,65.7 L 502.6,65.6 L 502.1,65.3 L 501.9,65.1 L 501.9,65 L 502.4,64.9 L 502.9,65.5 L 503.4,65.3 L 501.1,62.7 L 500,61.9 L 499.6,61.7 L 499.4,61.3 L 496.3,59.7 L 496.1,59.4 L 495.7,59.4 L 495.8,59.2 L 495,58.8 L 495,58.8 L 494.7,58.8 L 494.1,60.9 L 494,60.9 L 493.7,60.9 L 493.3,61.3 L 491.7,67.3 L 492.1,81.5 L 496.2,81 L 505.5,75.6 L 508.9,76.7 L 507.6,70 L 507.9,69.1 Z M 491.9,81.6 L 491.1,58.4 L 491.1,57.5 L 491.3,57.2 L 491,57 L 491.1,56.9 L 491.3,57 L 491.4,56.9 L 491.2,56.8 L 491.3,56.7 L 491.5,56.9 L 491.6,56.7 L 491.7,56.7 L 492.2,56.1 L 492,56.1 L 492.1,56 L 492.1,55.9 L 492.2,55.9 L 492.2,55.8 L 492.3,55.9 L 492.2,56 L 493.6,54.1 L 492.3,55.8 L 491.3,55.8 L 488.5,55.5 L 486.1,55 L 486,55 L 486,55 L 485.7,54.9 L 485.7,54.8 L 485.6,54.8 L 485.5,54.8 L 485.4,54.8 L 485.5,54.7 L 485.3,54.7 L 485.4,54.7 L 485.3,54.8 L 485.2,54.7 L 485.3,54.6 L 485.1,54.6 L 485.2,54.7 L 485,54.7 L 476.1,68.7 L 474.9,69.3 L 479.3,72.1 L 484.3,71.6 L 484.7,74.1 L 485.9,75.9 L 486.5,77.9 L 486,79.8 L 484.4,81.5 L 490.2,81.8 L 491.9,81.6 Z M 494.1,58.4 L 494.2,58.6 L 494.1,58.6 L 493.9,59 L 494,59.1 L 494,59.3 L 493.6,59.9 L 493.5,60.5 L 493.5,60.6 L 494,60.4 L 494.4,58.5 L 494.3,58.4 L 494.1,58.4 Z M 492.8,55.7 L 492.7,56.2 L 492.5,56.1 L 492.7,56.2 L 492.6,56.7 L 492.2,56.5 L 492.1,56.6 L 492.5,56.8 L 492.4,57 L 492.4,56.8 L 492.2,56.9 L 492.3,56.8 L 492.1,56.8 L 492.2,56.7 L 492.1,56.7 L 491.5,57.5 L 491.8,57.6 L 491.9,58 L 491.8,57.9 L 491.7,58 L 491.5,58 L 491.5,57.8 L 491.5,58.3 L 491.6,58.3 L 491.6,58.4 L 491.5,58.4 L 491.4,58.6 L 491.4,59.1 L 491.8,58.9 L 491.5,59.2 L 491.5,60.8 L 491.6,60.9 L 492.7,60.9 L 492.8,60.7 L 492.8,60.9 L 493.1,60.9 L 493.3,59.9 L 493.2,59.8 L 493.3,59.7 L 493.4,59.8 L 493.4,59.5 L 493.3,59.4 L 493.4,59.3 L 493.5,59.3 L 493.5,59.2 L 493.5,59.1 L 493.6,59 L 493.6,58.5 L 493.7,58.4 L 493.7,58.2 L 493.5,58.1 L 493.6,57.8 L 493.4,57.8 L 492.9,57.5 L 492.6,57.1 L 492.7,56.9 L 492.6,56.6 L 492.8,55.7 Z",
-    "cx": 493,
-    "cy": 60.7,
+    "cx": 494,
+    "cy": 60,
     "labs": 22,
     "students": 38000,
     "bbox": "465 44 54 48"
@@ -4940,18 +5347,24 @@ function renderEgyptInteractiveMap(activeNode) {
     "name": "Al Sharqia",
     "name_ar": "الشرقية",
     "d": "M 484.4,81.5 L 486,79.8 L 486.5,77.9 L 485.9,75.9 L 484.7,74.1 L 484.3,71.6 L 479.3,72.1 L 474.9,69.3 L 474.6,69.5 L 472.1,69.9 L 466.2,71.4 L 460.1,72.3 L 455.9,77.2 L 454.6,80.4 L 451.5,81.8 L 451.3,85.4 L 447.9,87.5 L 441.5,87.7 L 436.4,88.7 L 435.5,90.8 L 436.5,95.9 L 435.5,97.8 L 436.1,99.5 L 435.8,100 L 435.3,100.3 L 434.2,100.5 L 433.6,101 L 433.8,101.6 L 431.8,103.6 L 429,109.3 L 433.9,114.7 L 433.8,116.9 L 435.1,118.9 L 437,118.9 L 443.4,122.2 L 450.4,124.7 L 462.9,116.8 L 461.3,112.4 L 460.5,109.5 L 460.6,107.5 L 460.3,106.3 L 457.4,103.5 L 457.6,102.1 L 459.3,102.5 L 465.6,102.9 L 470,102.3 L 475.2,102.4 L 477.9,103.7 L 480.8,103 L 481.9,100.4 L 484.2,98 L 483.7,91.7 L 484,87.5 L 484,84.3 L 484.4,81.5 Z",
-    "cx": 458.9,
-    "cy": 94.7,
+    "cx": 459,
+    "cy": 95,
     "labs": 42,
     "students": 86000,
     "bbox": "419 59 78 75"
   }
 ];
 
-  const metricPills = [['attendance','calendar',TR('Attendance','الحضور')],
-                        ['mastery','student',TR('Avg. grade','متوسّط الدرجات')],
-                        ['anomalies','alert',TR('QA flags','التنبيهات')]]
-    .map(function(p){ return '<button class="'+(ACTIVE_MAP_METRIC===p[0]?'on':'')+'" onclick="setMapMetric(\''+p[0]+'\')">'+uiIcon(p[1],13)+' '+p[2]+'</button>'; }).join('');
+  const metricPills = [
+    ['attendance', 'calendar', TR('Attendance', 'الحضور')],
+    ['mastery', 'student', TR('Avg. grade', 'متوسّط الدرجات')],
+    ['anomalies', 'alert', TR('QA flags', 'التنبيهات')]
+  ].map(function(p){
+    const on = (ACTIVE_MAP_METRIC === p[0]) ? ' on' : '';
+    return '<button type="button" class="map-pill-btn' + on + '" onclick="setMapMetric(\'' + p[0] + '\')">'
+      + uiIcon(p[1], 14) + ' <span>' + p[2] + '</span>'
+      + '</button>';
+  }).join('');
 
   const m=metricsFor(node);
   const scopePath = node.level==='ministry' ? '' : nodePath(node);
@@ -4983,12 +5396,13 @@ function renderEgyptInteractiveMap(activeNode) {
     const depthBeyondGov = node.level==='governorate'?0 : node.level==='idara'?1 : node.level==='school'?2 : 0;
     const vb = (node.level==='ministry' || !govGeo) ? {x:20,y:10,w:760,h:660} : mapTierBbox(govGeo.bbox, depthBeyondGov);
 
-    let polygons='', points='', bubbles='';
+    let polygons='', points='';
     if (node.level==='ministry') {
       polygons = govData.map(function(g){
         const st=mapStyleFor(NODE[g.id]);
-        return '<path id="poly-'+g.id+'" d="'+g.d+'" fill="'+st.fill+'" stroke="'+st.stroke+'" stroke-width="1.2" vector-effect="non-scaling-stroke"'
-          +' class="map-poly" role="button" tabindex="0"'
+        return '<path id="poly-'+g.id+'" d="'+g.d+'" fill="'+st.fill+'" stroke="'+(st.stroke||'rgba(255,255,255,0.25)')+'" stroke-width="1.2" vector-effect="non-scaling-stroke"'
+          +' class="map-poly" role="button" tabindex="0" style="cursor:pointer"'
+          +' onclick="mapDrillTo(\''+g.id+'\')"'
           +' data-drill="'+g.id+'"'
           +' aria-label="'+esc(AR?g.name_ar:g.name)+' — '+st.desc+'"'
           +' onmouseenter="mapHoverGov(\''+g.id+'\', event)"'
@@ -4998,33 +5412,69 @@ function renderEgyptInteractiveMap(activeNode) {
           +' onblur="mapLeaveGov()"/>';
       }).join('');
 
+      const spaciousGovs = new Set([
+        'g-matrouh', 'g-newvalley', 'g-redsea', 'g-aswan', 'g-nsinai', 'g-ssinai',
+        'g-minya', 'g-asyut', 'g-sohag', 'g-qena', 'g-luxor', 'g-alex', 'g-cairo', 'g-suez', 'g-benisuef', 'g-fayoum'
+      ]);
+
       points = govData.map(function(g){
         const mGov = NODE[g.id] ? metricsFor(NODE[g.id]) : {attendance:82,mastery:65};
         const val = ACTIVE_MAP_METRIC==='mastery' ? (mGov.mastery+'%') : (mGov.attendance+'%');
-        return '<g class="map-pin-group" transform="translate('+g.cx+','+g.cy+')" style="pointer-events:none">'
-          +'<circle r="14" fill="rgba(11,25,44,0.75)" stroke="rgba(255,215,0,0.8)" stroke-width="1.5" />'
-          +'<text y="-2" text-anchor="middle" fill="#FFFFFF" font-size="9" font-weight="800" font-family="var(--font)">'+esc(AR?g.name_ar:g.name)+'</text>'
-          +'<text y="9" text-anchor="middle" fill="var(--ischool-gold)" font-size="8" font-weight="700" font-family="var(--font)">'+val+'</text>'
+        const name = esc(AR ? g.name_ar : g.name);
+        const hasLabel = spaciousGovs.has(g.id);
+
+        return '<g class="map-pin-badge" transform="translate('+g.cx+','+g.cy+')" role="button" tabindex="0" style="cursor:pointer" onclick="mapDrillTo(\''+g.id+'\')" data-drill="'+g.id+'"'
+          +' onmouseenter="mapHoverGov(\''+g.id+'\', event)" onmousemove="mapMoveGov(event)" onmouseleave="mapLeaveGov()">'
+          +'<rect x="-13" y="-7.5" width="26" height="15" rx="7.5" fill="rgba(11,25,44,0.94)" stroke="var(--ischool-gold)" stroke-width="1.3" filter="url(#gov-glow)" />'
+          +'<text y="3.5" text-anchor="middle" fill="var(--ischool-gold)" font-size="8" font-weight="900" font-family="var(--font)">'+val+'</text>'
+          +(hasLabel ? ('<text y="19" text-anchor="middle" fill="#FFFFFF" stroke="#0B192C" stroke-width="2.4" paint-order="stroke fill" font-size="8.5" font-weight="800" font-family="var(--font)">'+name+'</text>') : '')
           +'</g>';
       }).join('');
-    } else {
-      polygons = '<path d="'+(govGeo?govGeo.d:'')+'" fill="var(--teal-050)" stroke="var(--teal-700)" stroke-width="2.5" vector-effect="non-scaling-stroke" />';
-      bubbles = mapChildBubbles(node, vb);
-    }
 
-    mapBody = '<div class="map-svg-wrap" style="position:relative;background:linear-gradient(135deg,#0B192C 0%,#0D2040 100%);border-radius:var(--radius);overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,0.35);">'
-      +'<svg viewBox="'+vb.x+' '+vb.y+' '+vb.w+' '+vb.h+'" preserveAspectRatio="xMidYMid meet" class="map-svg" role="img" aria-label="'+TR('Geographic map of Egypt governorates','خريطة مصر الجغرافية للمحافظات')+'" style="width:100%;height:auto;min-height:560px;display:block">'
-      +'<defs>'
-      +'<filter id="gov-glow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#056FEC" flood-opacity="0.3"/></filter>'
-      +'<pattern id="gis-grid-exact" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/></pattern>'
-      +'</defs>'
-      +'<rect x="0" y="0" width="800" height="680" fill="url(#gis-grid-exact)" />'
-      +'<g id="map-polys">'+polygons+'</g>'
-      +'<g id="map-bubbles">'+bubbles+'</g>'
-      +'<g id="map-points">'+points+'</g>'
-      +'</svg>'
-      +'<div id="map-tip" class="map-tip" role="status" aria-live="polite" style="display:none"></div>'
-      +'</div>';
+      mapBody = '<div class="map-svg-wrap" style="position:relative;background:linear-gradient(135deg,#0B192C 0%,#0D2040 100%);border-radius:var(--radius);overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,0.35);">'
+        +'<svg viewBox="'+vb.x+' '+vb.y+' '+vb.w+' '+vb.h+'" preserveAspectRatio="xMidYMid meet" class="map-svg" role="img" aria-label="'+TR('Geographic map of Egypt governorates','خريطة مصر الجغرافية للمحافظات')+'" style="width:100%;height:auto;min-height:560px;display:block">'
+        +'<defs>'
+        +'<filter id="gov-glow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#056FEC" flood-opacity="0.3"/></filter>'
+        +'<pattern id="gis-grid-exact" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/></pattern>'
+        +'</defs>'
+        +'<rect x="0" y="0" width="800" height="680" fill="url(#gis-grid-exact)" />'
+        +'<g id="map-polys">'+polygons+'</g>'
+        +'<g id="map-points">'+points+'</g>'
+        +'</svg>'
+        +'<div id="map-tip" class="map-tip" role="status" aria-live="polite" style="display:none"></div>'
+        +'</div>';
+    } else {
+      const kids = node.children || [];
+      const unitCards = kids.map(function(ch){
+        const cm = metricsFor(ch);
+        const fs = flagSummary(ch);
+        const tone = cm.mastery < 50 || cm.attendance < 80 ? 'risk' : (cm.mastery < 65 || cm.attendance < 90 ? 'warn' : 'ok');
+        const valStr = ACTIVE_MAP_METRIC === 'mastery' ? (cm.mastery + '%') : (cm.attendance + '%');
+        const subCohort = cohortOf(ch);
+        const subTypeLabel = mapTierLabel(ch.level);
+
+        return '<div class="map-unit-card ' + tone + '" onclick="mapDrillTo(\'' + ch.id + '\')" role="button" tabindex="0">'
+          + '<div class="map-unit-head">'
+          + '<div>'
+          + '<span class="tag xs ' + (tone === 'risk' ? 'risk' : tone === 'warn' ? 'warn' : 'ok') + '" style="margin-bottom:.3rem">' + subTypeLabel + '</span>'
+          + '<h4 class="map-unit-title">' + esc(nodeName(ch)) + '</h4>'
+          + '</div>'
+          + '<span class="pill ' + (tone === 'risk' ? 'risk' : tone === 'warn' ? 'warn' : 'ok') + '" style="font-size:.85rem;font-weight:900">' + valStr + '</span>'
+          + '</div>'
+          + '<div class="map-unit-metrics">'
+          + '<span class="map-unit-badge hi">' + uiIcon('calendar', 12) + ' ' + TR('Attendance: ', 'الحضور: ') + cm.attendance + '%</span>'
+          + '<span class="map-unit-badge">' + uiIcon('student', 12) + ' ' + TR('Grade: ', 'الدرجات: ') + cm.mastery + '%</span>'
+          + (fs.total ? '<span class="map-unit-badge" style="color:var(--risk-700);background:var(--risk-050)">⚑ ' + fs.total + ' ' + TR('flags', 'تنبيه') + '</span>' : '')
+          + '</div>'
+          + '<div class="map-unit-foot">'
+          + '<span>' + uiIcon('people', 12) + ' ' + subCohort.toLocaleString() + ' ' + TR('students', 'طالب') + '</span>'
+          + '<span class="map-unit-cta">' + TR('Drill down', 'استعراض والتعمّق') + ' ' + aFwd() + '</span>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+
+      mapBody = '<div class="map-tier-grid" role="list" aria-label="' + TR('Sub-units', 'الوحدات التابعة') + '">' + unitCards + '</div>';
+    }
 
     legendHtml = '<span class="map-legend-item"><i style="background:var(--ok-700)"></i>'+(ACTIVE_MAP_METRIC==='mastery'?TR('Mastery ≥ 65%','إتقان ≥ ٦٥٪'):TR('Attendance ≥ 90%','حضور ≥ ٩٠٪'))+'</span>'
       +'<span class="map-legend-item"><i style="background:var(--warn-700)"></i>'+(ACTIVE_MAP_METRIC==='mastery'?TR('Mastery 50–64%','إتقان ٥٠–٦٤٪'):TR('Attendance 80–89%','حضور ٨٠–٨٩٪'))+'</span>'
@@ -5059,15 +5509,363 @@ function renderEgyptInteractiveMap(activeNode) {
     +'</div>';
 }
 
+/* ---------- BI Core Helper Components & Visualisation Primitives ---------- */
+function biTab(){
+  return S.adminAnalyticsTab || 'overview';
+}
+
+function biPanel(opts){
+  const span = opts.span ? ' span-' + opts.span : '';
+  const bodyCls = opts.flush ? ' flush' : '';
+  return '<section class="bi-panel' + span + '">'
+    + (opts.title ? '<div class="bi-panel-h"><div><h3>' + opts.title + '</h3>'
+      + (opts.sub ? '<p class="bi-panel-sub">' + opts.sub + '</p>' : '') + '</div>'
+      + (opts.tools ? '<div class="bi-panel-tools">' + opts.tools + '</div>' : '')
+      + '</div>' : '')
+    + '<div class="bi-panel-b' + bodyCls + '">' + (opts.body || '') + '</div>'
+    + (opts.foot ? '<div class="bi-panel-f">' + opts.foot + '</div>' : '')
+    + '</section>';
+}
+
+function biKpi(opts){
+  if(!opts) return '';
+  const label = opts.label || opts.title || '';
+  const num = (opts.num != null ? opts.num : opts.val) || '—';
+  const ctx = opts.ctx || opts.sub || '';
+  const tone = opts.tone || 'info';
+  const tag = (opts.drill || opts.clickable) ? 'button' : 'div';
+  const drillAttr = opts.drill ? ' data-bi-tab="' + opts.drill + '"' : '';
+  
+  let bullet = '';
+  if(opts.pct != null){
+    bullet = '<span class="bi-bullet"><i style="width:' + clamp(opts.pct,0,100) + '%"></i></span>';
+  }
+  let deltaHtml = '';
+  if(opts.delta != null){
+    const dcls = opts.deltaTone || 'ok';
+    deltaHtml = ' <span class="bi-delta ' + dcls + '">' + opts.delta + '</span>';
+  }
+  let sparkHtml = '';
+  if(opts.spark){
+    sparkHtml = typeof opts.spark === 'string' ? opts.spark : biAreaSpark(opts.spark, tone, 24);
+  }
+  return '<' + tag + ' class="bi-kpi ' + tone + '"' + drillAttr + '>'
+    + '<div class="bi-kpi-lbl">' + label + '</div>'
+    + '<div class="bi-kpi-num">' + num + deltaHtml + '</div>'
+    + (ctx ? '<div class="bi-kpi-ctx">' + ctx + '</div>' : '')
+    + bullet
+    + (sparkHtml ? '<div class="bi-kpi-spark">' + sparkHtml + '</div>' : '')
+    + '</' + tag + '>';
+}
+
+function biAreaSpark(series, tone, height){
+  tone = tone || 'ok';
+  height = height || 28;
+  if(!series || !series.length) return '';
+  const W=90, H=height, pad=3;
+  const max=Math.max.apply(null, series.concat([100])), min=Math.min.apply(null, series.concat([0])), r=(max-min)||1;
+  const step=(W-pad*2)/(Math.max(series.length-1, 1));
+  const pts=series.map(function(v,i){ return [pad+i*step, (H-pad)-((v-min)/r)*(H-pad*2)]; });
+  const dLine=pts.map(function(p,i){ return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1); }).join(' ');
+  const dArea=dLine + ' L' + pts[pts.length-1][0].toFixed(1) + ' ' + H + ' L' + pts[0][0].toFixed(1) + ' ' + H + ' Z';
+  const col = tone==='ok'?'var(--ok-700)':tone==='warn'?'var(--warn-700)':'var(--risk-700)';
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" class="bi-spark" aria-hidden="true" style="overflow:visible">'
+    + '<path d="' + dArea + '" fill="' + col + '" fill-opacity="0.15" />'
+    + '<path d="' + dLine + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    + '</svg>';
+}
+
+function biStack(segs){
+  if(!segs || !segs.length) return '';
+  return '<div class="bi-stack">'
+    + segs.map(function(s){
+        const bg = s.col || s.color || ('var(--' + (s.tone || 'ok') + '-700)');
+        const p = s.pct != null ? s.pct : (s.v != null ? s.v : 0);
+        return '<span style="width:' + clamp(p,0,100) + '%;background:' + bg + '" title="' + esc(s.label || '') + ' (' + p + '%)"></span>';
+      }).join('')
+    + '</div>';
+}
+
+function biLegend(segs){
+  if(!segs || !segs.length) return '';
+  return '<div class="bi-legend">'
+    + segs.map(function(s){
+        const bg = s.col || s.color || ('var(--' + (s.tone || 'ok') + '-700)');
+        let val = '';
+        if (s.count != null) val = String(s.count);
+        else if (s.v != null) val = String(s.v);
+        else if (s.pct != null) val = s.pct + '%';
+        else val = '0';
+        return '<span class="bi-lg"><i style="background:' + bg + '"></i><span>' + (s.label || '') + '</span><b>' + val + '</b></span>';
+      }).join('')
+    + '</div>';
+}
+
+function biDonut(segs, total, centerLabel){
+  if(!segs) segs = [];
+  const tot = total != null ? total : segs.reduce(function(a,b){ return a + (b.count || b.v || b.pct || 0); }, 0);
+  const size = 110, stroke = 14, r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  let offset = 0;
+  const paths = segs.map(function(s){
+    let p = 0;
+    if (s.pct != null) p = s.pct;
+    else if (tot > 0 && (s.count != null || s.v != null)) p = ((s.count || s.v) / tot) * 100;
+    const dash = (clamp(p, 0, 100) / 100) * c;
+    const col = s.col || s.color || ('var(--' + (s.tone || 'ok') + '-700)');
+    const el = '<circle cx="' + (size/2) + '" cy="' + (size/2) + '" r="' + r + '" fill="transparent" stroke="' + col + '" stroke-width="' + stroke + '" stroke-dasharray="' + dash + ' ' + (c - dash) + '" stroke-dashoffset="' + (-offset) + '" />';
+    offset += dash;
+    return el;
+  }).join('');
+  return '<div class="bi-donut" style="position:relative;width:' + size + 'px;height:' + size + 'px">'
+    + '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '" style="transform:rotate(-90deg)">'
+    + '<circle cx="' + (size/2) + '" cy="' + (size/2) + '" r="' + r + '" fill="transparent" stroke="var(--line)" stroke-width="' + stroke + '" />'
+    + paths
+    + '</svg>'
+    + '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none">'
+    + '<strong style="font-size:1.25rem;font-weight:900;color:var(--ink);line-height:1">' + tot + '</strong>'
+    + (centerLabel ? '<span class="tiny muted" style="font-weight:700;margin-top:.1rem">' + centerLabel + '</span>' : '')
+    + '</div>'
+    + '</div>';
+}
+
+function biCommandBar(node){
+  const fs = flagSummary(node);
+  const hot = (fs.bySev.critical + fs.bySev.high);
+  
+  // Tier rail navigation
+  const parts = [];
+  S.adminPath.forEach(function(id, idx){
+    const n = NODE[id];
+    if(!n) return;
+    const isLast = (idx === S.adminPath.length - 1);
+    if(isLast){
+      parts.push('<div class="tier here"><span class="tier-lvl">' + levelLabel(n.level) + '</span><span class="tier-name" style="cursor:default"><strong>' + esc(nodeName(n)) + '</strong></span></div>');
+    } else {
+      parts.push('<div class="tier"><button type="button" class="tier-name" data-crumb="' + idx + '">' + esc(nodeName(n)) + '</button></div>');
+      parts.push('<span class="tier-sep" aria-hidden="true">›</span>');
+    }
+  });
+  
+  // Next child picker dropdown if available
+  if(node.children && node.children.length){
+    parts.push('<span class="tier-sep" aria-hidden="true">›</span>');
+    parts.push('<div class="tier next"><label class="sr-only" for="tier-picker">' + TR('Drill into ','الانتقال إلى ') + childLabel(node.level) + '</label>'
+      + '<select id="tier-picker" class="tier-pick" onchange="if(this.value){mapDrillTo(this.value);}">'
+      + '<option value="">' + TR('Drill down…','تعمّق إلى…') + ' (' + childLabel(node.level) + ')' + '</option>'
+      + node.children.map(function(ch){ return '<option value="' + ch.id + '">' + esc(nodeName(ch)) + '</option>'; }).join('')
+      + '</select></div>');
+  }
+  
+  if(S.adminPath.length > 1){
+    parts.push('<button type="button" class="tier-reset" onclick="mapReset()">' + TR('↺ National scope','↺ النطاق الوطني') + '</button>');
+  }
+
+  // Date range filter buttons
+  const dateRanges = [
+    { id: 'last_7_d', l: TR('Last 7 Days','آخر ٧ أيام') },
+    { id: 'last_2_w', l: TR('Last 2 weeks','آخر أسبوعين') },
+    { id: 'month_to_date', l: TR('This month','هذا الشهر') },
+    { id: 'to_date', l: TR('Term to date','الفصل حتى اليوم') }
+  ];
+  const datePills = dateRanges.map(function(dr){
+    const on = (S.dateRange === dr.id || (!S.dateRange && dr.id==='to_date')) ? ' on' : '';
+    return '<button type="button" class="' + on + '" data-filter-daterange="' + dr.id + '">' + dr.l + '</button>';
+  }).join('');
+
+  // Quiz Session Filters
+  const quizFilter = S.biQuizFilter || 'all';
+  const quizFilters = [
+    { id: 'all', l: TR('All Quizzes','كافة الاختبارات') },
+    { id: 'weekly', l: TR('Weekly Quizzes','اختبارات أسبوعية') },
+    { id: 'diagnostic', l: TR('Diagnostic','تقييم تشخيصي') },
+    { id: 'exams', l: TR('Term Exams','امتحانات الفصل') }
+  ];
+  const quizPills = quizFilters.map(function(qf){
+    const on = (quizFilter === qf.id) ? ' on' : '';
+    return '<button type="button" class="bi-sub-pill' + on + '" data-bi-quiz-filter="' + qf.id + '">' + qf.l + '</button>';
+  }).join('');
+
+  const sessionFilter = S.biSessionFilter || 'all';
+  const sessionFilters = [
+    { id: 'all', l: TR('All Sessions','كافة الجلسات') },
+    { id: 'in_person', l: TR('In-Person Session','حضور مباشر') },
+    { id: 'digital_live', l: TR('Digital Live','رصد رقمي فوري') }
+  ];
+  const sessionPills = sessionFilters.map(function(sf){
+    const on = (sessionFilter === sf.id) ? ' on' : '';
+    return '<button type="button" class="bi-sub-pill' + on + '" data-bi-session-filter="' + sf.id + '">' + sf.l + '</button>';
+  }).join('');
+
+  return '<div class="bi-cmd-wrapper mb">'
+    + '<div class="bi-cmd">'
+    + '<div class="tier-rail">' + parts.join('') + '</div>'
+    + '<div class="bi-cmd-r">'
+    + '<div class="seg sm" role="group" aria-label="' + TR('Timeframe','النطاق الزمني') + '">' + datePills + '</div>'
+    + '<button type="button" class="bi-bell' + (hot ? ' hot' : '') + '" data-bi-tab="flags" aria-label="' + TR('QA flags & anomalies','تنبيهات الجودة ونزاهة البيانات') + '">'
+    + uiIcon('alert', 15) + ' <span>' + TR('QA Flags','تنبيهات الجودة') + '</span> <b>' + fs.total + '</b>'
+    + (hot ? '<span class="bi-bell-dot"></span>' : '')
+    + '</button>'
+    + '</div>'
+    + '</div>'
+    
+    <!-- Sub-Filter Bar for Quiz & Session BI -->
+    + '<div class="bi-sub-filter-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-top:.6rem;padding:.55rem .85rem;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.02)">'
+    + '<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+    + '<span class="eyebrow" style="margin:0;font-size:.76rem;color:var(--ink-2);display:flex;align-items:center;gap:.3rem">🧪 ' + TR('Quiz & Session BI Filter:','تصفية جلسات الاختبارات والتقييم:') + '</span>'
+    + '<div class="pill-group" style="display:flex;gap:.35rem">' + quizPills + '</div>'
+    + '<span style="color:var(--line)">|</span>'
+    + '<div class="pill-group" style="display:flex;gap:.35rem">' + sessionPills + '</div>'
+    + '</div>'
+    + '<div class="tiny muted" style="display:flex;align-items:center;gap:.4rem">'
+    + '<span class="dot ok"></span> ' + TR('Live BI Telemetry Active','مؤشرات البث الرقمي الفوري نشطة')
+    + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function biTabs(node){
+  const fs = flagSummary(node);
+  const cur = biTab();
+  const tabs = [
+    { id:'overview', ico:'insights', label:TR('Overview','نظرة عامة') },
+    { id:'geo', ico:'map', label:TR('Geographic & Units','التوزيع الجغرافي والوحدات') },
+    { id:'subjects', ico:'book', label:TR('Subjects & Mastery','المواد والتحصيل') },
+    { id:'attendance', ico:'calendar', label:TR('Attendance & Excuses','الحضور والأعذار') },
+    { id:'flags', ico:'alert', label:TR('QA Flags','تنبيهات الجودة'), badge:fs.total, hot:(fs.bySev.critical+fs.bySev.high)>0 },
+    { id:'actions', ico:'target', label:TR('Action Plan','خطة التدخل والتوصيات') }
+  ];
+  return '<div class="bi-tabs" role="tablist">'
+    + tabs.map(function(tb){
+        const on = (cur === tb.id) ? ' on' : '';
+        const bClass = tb.hot ? 'bi-tab-b hot' : 'bi-tab-b';
+        const bHtml = (tb.badge != null && tb.badge > 0) ? '<span class="' + bClass + '">' + tb.badge + '</span>' : '';
+        return '<button type="button" class="bi-tab' + on + '" data-bi-tab="' + tb.id + '" role="tab" aria-selected="' + (cur === tb.id) + '">'
+          + uiIcon(tb.ico, 16) + ' <span>' + tb.label + '</span>' + bHtml
+          + '</button>';
+      }).join('')
+    + '</div>';
+}
+
+function biOverview(node, m){
+  const fs = flagSummary(node);
+  const hot = fs.bySev.critical + fs.bySev.high;
+  const coh = cohortOf(node);
+  const riskCount = atRiskOf(node);
+  
+  const attSpark = biAreaSpark(trendFor(node.id+'att', m.attendance), m.attendance>=90?'ok':m.attendance>=80?'warn':'risk', 24);
+  const masSpark = biAreaSpark(trendFor(node.id+'mas', m.mastery), m.mastery>=65?'ok':m.mastery>=50?'warn':'risk', 24);
+  
+  const kpiStrip = '<div class="bi-kpis">'
+    + biKpi({ label:TR('Student Attendance','نسبة حضور الطلاب'), num:m.attendance+'%', tone:m.attendance>=90?'ok':m.attendance>=80?'warn':'risk', pct:m.attendance, ctx:TR('Target ≥ 90%','المستهدف ≥ ٩٠٪'), spark:attSpark, drill:'attendance' })
+    + biKpi({ label:TR('Subject Mastery','متوسّط التحصيل والإتقان'), num:m.mastery+'%', tone:m.mastery>=65?'ok':m.mastery>=50?'warn':'risk', pct:m.mastery, ctx:TR('Target ≥ 65%','المستهدف ≥ ٦٥٪'), spark:masSpark, drill:'subjects' })
+    + biKpi({ label:TR('Quiz Session Compliance','انضباط جلسات التقييم'), num:'96.4%', tone:'ok', pct:96.4, ctx:TR('30m SLA compliance','رصد فوري متزامن'), drill:'attendance' })
+    + biKpi({ label:TR('Early Warning Indicator','مؤشر الإنذار المبكر (تسرب)'), num:m.dropoutRiskPct+'%', tone:m.dropoutRiskPct>=12?'risk':m.dropoutRiskPct>=8?'warn':'ok', ctx:riskCount.toLocaleString()+' '+TR('students flagged','طالب مرصود للدعم'), drill:'flags' })
+    + biKpi({ label:TR('School Connectivity','اتصال المدارس بالشبكة'), num:m.onlineShare+'%', tone:m.onlineShare>=85?'ok':m.onlineShare>=70?'warn':'risk', pct:m.onlineShare, ctx:(m.schools-m.offlineSchools)+'/'+m.schools+' '+TR('online schools','مدرسة متصلة'), drill:'geo' })
+    + biKpi({ label:TR('QA Flags & Anomalies','تنبيهات الجودة والنظام'), num:fs.total, tone:hot>0?'risk':fs.total>0?'warn':'ok', ctx:hot>0?(hot+' '+TR('critical / high','حرجة أو مرتفعة')):TR('All within grace SLA','ضمن مهلة التدقيق'), drill:'flags' })
+    + '</div>';
+
+  // Quiz Session Telemetry Card
+  const quizSessionPanel = biPanel({
+    span: 3,
+    title: TR('Quiz Sessions & Assessment Telemetry','تحليلات جلسات الاختبارات والتقييمات الرقمية'),
+    sub: TR('Real-time tracking of assessment sessions, mode distribution, and grading SLA compliance','متابعة انضباط جلسات الرصد الفوري ومعدلات إتمام الاختبارات حسب نمط الجلسة والنطاق الزمني'),
+    body: (function(){
+      const segs = [
+        { label: TR('In-Person Class Quiz','حضور مباشر بالحصة'), pct: 76, count: 2410, col: '#056FEC' },
+        { label: TR('Digital Live Quiz','رصد رقمي فوري'), pct: 18, count: 580, col: '#10B981' },
+        { label: TR('Batch Offline Quiz','رصد ورقي تجميعي'), pct: 6, count: 120, col: '#F59E0B' }
+      ];
+      return '<div class="flex between center wrapw" style="gap:1.5rem;padding:.5rem 0">'
+        + '<div style="display:flex;align-items:center;gap:1.25rem">'
+        + biDonut(segs, 3110, TR('Quiz Sessions','جلسة اختباريّة'))
+        + biLegend(segs)
+        + '</div>'
+        + '<div style="flex:1;min-width:260px;display:grid;grid-template-columns:1fr 1fr;gap:.85rem">'
+        + '<div style="background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:.85rem 1rem">'
+        + '<span class="eyebrow" style="margin:0 0 .2rem">' + TR('Weekly Quiz Completion Rate','معدل إتمام الاختبارات الأسبوعية') + '</span>'
+        + '<div style="font-size:1.6rem;font-weight:900;color:var(--teal-700)">96.4%</div>'
+        + '<span class="tiny muted">' + TR('3,110 sessions completed this term','٣,١١٠ جلسات مرصودة بنجاح') + '</span>'
+        + '</div>'
+        + '<div style="background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:.85rem 1rem">'
+        + '<span class="eyebrow" style="margin:0 0 .2rem">' + TR('Grading SLA (<30 mins)','سرعة رصد الجلسات (<٣٠ دقيقة)') + '</span>'
+        + '<div style="font-size:1.6rem;font-weight:900;color:var(--ischool-blue)">94.1%</div>'
+        + '<span class="tiny muted">' + TR('Zero grace breaches in current period','التزام تام بمعايير الجودة') + '</span>'
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    })()
+  });
+
+  return '<div class="bi-grid">'
+    + '<div style="grid-column:1 / -1">' + kpiStrip + '</div>'
+    + '<div style="grid-column:1 / -1">' + quizSessionPanel + '</div>'
+    + biPanel({ span:2, title:TR('Geographic Overview & Regional Health','الخريطة التفاعلية ومؤشرات المحافظات'),
+        sub:TR('Click any region to zoom in and examine district & school level data','اضغط على أي محافظة أو إدارة للتعمق واستعراض مستويات المدارس'),
+        tools:'<button class="btn sec xs" data-bi-tab="geo">' + TR('Full Geographic Table','جدول الوحدات التابعة') + ' ' + aFwd() + '</button>',
+        body: renderEgyptInteractiveMap(node) })
+    + biPanel({ title:TR('Support-First Ranking of Units','ترتيب الوحدات حسب الحاجة للدعم'),
+        sub:TR('Surfacing where pedagogical and operational support is most needed','إبراز الوحدات الأكثر حاجة للمتابعة والدعم الفني'),
+        tools: cmpSelect(),
+        flush: true,
+        body: biCompareRows(node) })
+    + biPanel({ title:TR('Subject Mastery Snapshot','نظرة سريعة على المواد الأساسية'),
+        sub:TR('Average scores across active assessments','متوسط الدرجات في التقييمات المعتمدة'),
+        tools:'<button class="btn sec xs" data-bi-tab="subjects">' + TR('View Matrix','مصفوفة المواد') + ' ' + aFwd() + '</button>',
+        body:(function(){
+          const sAvg = subjectAverages(node);
+          return '<div class="bi-subj-grid">'
+            + SUBJECTS.map(function(su){
+                const v = sAvg[su];
+                const tone = v>=65?'ok':v>=50?'warn':'risk';
+                const sName = S.settings.lang==='ar' ? (SUBJECTS_AR[su]||su) : su;
+                return '<div class="bi-subj ' + tone + '">'
+                  + '<div class="bi-subj-h"><span class="bi-subj-i">' + uiIcon(su.toLowerCase().replace(/\s+/g,''), 18) + '</span><strong>' + esc(sName) + '</strong></div>'
+                  + '<div style="font-size:1.45rem;font-weight:900;color:var(--' + tone + '-700)">' + v + '%</div>'
+                  + '<div class="bi-subj-f"><span class="tiny muted">' + (v>=65?TR('Target reached','محقق للمستهدف'):TR('Needs support','يحتاج تدخلاً')) + '</span></div>'
+                  + '</div>';
+              }).join('')
+            + '</div>';
+        })() })
+    + biPanel({ title:TR('Priority QA Flags & Active Breaches','أهم تنبيهات الجودة ومخالفات الرصد النشطة'),
+        sub:TR('Automated rule engine detects zero-variance, grace overdue, and excuse spikes','رصد آلي لتأخر الرصد، غياب التباين، وارتفاع نسب الأعذار'),
+        tools:'<button class="btn sec xs" data-bi-tab="flags">' + TR('All Flags (' + fs.total + ')','كل التنبيهات (' + fs.total + ')') + ' ' + aFwd() + '</button>',
+        flush: true,
+        body:(function(){
+          const fls = detectFlags(node).slice(0, 4);
+          if(!fls.length){
+            return '<div style="padding:1.5rem;text-align:center" class="muted small">' + uiIcon('check', 24, 'ok-icon') + '<br>' + TR('No active data or grading breaches in this scope.','لا توجد مخالفات رصد أو بيانات نشطة في هذا النطاق.') + '</div>';
+          }
+          return '<div style="display:flex;flex-direction:column">'
+            + fls.map(function(f){
+                return '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:.5rem">'
+                  + '<div><div style="display:flex;align-items:center;gap:.4rem"><span class="tag ' + (FLAG_SEV[f.sev].tone || 'warn') + '">' + sevLabel(f.sev) + '</span><strong>' + esc(f.title) + '</strong></div>'
+                  + '<p class="tiny muted" style="margin:.2rem 0 0">' + esc(f.path) + '</p></div>'
+                  + '<button class="btn sec xs" data-bi-tab="flags">' + TR('Investigate','فحص') + ' ' + aFwd() + '</button>'
+                  + '</div>';
+              }).join('')
+            + '</div>';
+        })() })
+    + biPanel({ title:TR('Decision Support & Strategic Actions','دعم القرار والتوصيات الإجرائية المباشرة'),
+        sub:TR('Context-aware interventions derived from real-time indicators','تدخلات تنفيذية مستخلصة من مؤشرات الأداء الحالية'),
+        tools:'<button class="btn sec xs" data-bi-tab="actions">' + TR('Full Action Plan','خطة التدخل الكاملة') + ' ' + aFwd() + '</button>',
+        body:(function(){
+          return '<div style="display:flex;flex-direction:column;gap:.6rem">'
+            + (hot>0 ? '<div class="bi-act risk"><span class="bi-act-i">' + uiIcon('alert', 18) + '</span><div><strong>' + TR('Dispatch quality inspectors to overdue grading schools','توجيه الموجهين الفنيين للمدارس المتأخرة بالرصد') + '</strong><p>' + TR('Zero-default is currently applied to protect statistics. Grant 24h grace extension.','مطبق عليها صفر لحماية المؤشرات. امنح مهلة ٢٤ ساعة مع توجيه الموجه.') + '</p></div></div>' : '')
+            + (m.dropoutRiskPct>=8 ? '<div class="bi-act warn"><span class="bi-act-i">' + uiIcon('target', 18) + '</span><div><strong>' + TR('Trigger early-warning academic remedial track','تفعيل مسار الدعم الأكاديمي والإنذار المبكر') + '</strong><p>' + TR('Students flagged for chronic absence + score decline should be scheduled for booster packs.','الطلاب المرصودون لغياب متكرر مع تراجع درجات يجب إدراجهم في حصص التقوية.') + '</p></div></div>' : '')
+            + '<div class="bi-act ok"><span class="bi-act-i">' + uiIcon('cloud', 18) + '</span><div><strong>' + TR('Synchronise offline school cache packs','تأكيد مزامنة حزم المحتوى دون اتصال للمدارس النائية') + '</strong><p>' + TR('Ensure low-connectivity schools receive latest question banks and lesson packs via sync points.','التأكد من استلام نقاط التنسيق لأحدث بنوك الأسئلة والمحتوى الرقمي.') + '</p></div></div>'
+            + '</div>';
+        })() })
+    + '</div>';
+}
+
 /* compare rows, panel-flavoured (reuses the same metric selector semantics as cmpChart) */
 function biCompareRows(node){
   const kids=node.children||[]; if(!kids.length) return '';
   const metric=S.cmpMetric||'attendance', riskM=metric==='risk';
   const getv=function(ch){ const cm=metricsFor(ch);
-    return metric==='attendance'?cm.attendance:metric==='mastery'?cm.mastery:metric==='teacher'?cm.teacherAttendance:cm.dropoutRiskPct; };
+    return metric==='attendance'?cm.attendance:metric==='mastery'?cm.mastery:cm.dropoutRiskPct; };
   const toneOf=function(v){ return riskM?(v>=12?'risk':v>=8?'warn':'ok')
-    :metric==='mastery'?(v>=65?'ok':v>=50?'warn':'risk')
-    :metric==='teacher'?(v>=92?'ok':v>=85?'warn':'risk'):(v>=90?'ok':v>=80?'warn':'risk'); };
+    :metric==='mastery'?(v>=65?'ok':v>=50?'warn':'risk'):(v>=90?'ok':v>=80?'warn':'risk'); };
   const rows=kids.map(function(ch){ return {ch:ch,v:getv(ch),f:flagSummary(ch)}; })
                  .sort(function(a,b){ return riskM? b.v-a.v : a.v-b.v; });
   const maxv=Math.max.apply(null,rows.map(function(r){return r.v;}).concat([100]));
@@ -5181,7 +5979,7 @@ function biAttendance(node,m){
           +'<div><span class="bi-fact-n" style="color:var(--ok-700)">'+m.attendance+'%</span><span class="bi-fact-l">'+TR('session attendance','حضور الحصص')+'</span></div>'
           +'<div><span class="bi-fact-n" style="color:var(--warn-700)">'+m.excusedAbuseRatio+'%</span><span class="bi-fact-l">'+TR('excused ratio (limit 40%)','نسبة الأعذار (الحد ٤٠%)')+'</span></div>'
           +'<div><span class="bi-fact-n" style="color:var(--info-700)">'+m.totalExcused+'</span><span class="bi-fact-l">'+TR('excused sessions','حصة بعذر')+'</span></div>'
-          +'<div><span class="bi-fact-n" style="color:var(--purple-700)">'+m.teacherAttendance+'%</span><span class="bi-fact-l">'+TR('teacher attendance','حضور المعلّمين')+'</span></div>'
+          +'<div><span class="bi-fact-n" style="color:var(--purple-700)">94%</span><span class="bi-fact-l">'+TR('on-time recording','الرصد في الموعد')+'</span></div>'
           +'</div>'
           +'<p class="bi-mini">'+TR('This week, by day','هذا الأسبوع، يوميًّا')+'</p>'
           +'<div class="bi-week">'+week.map(function(v,i){
@@ -5258,7 +6056,19 @@ function biFlags(node){
   const fs=flagSummary(node);
   const list=filteredFlags(node);
   const F=S.flags;
-  const sevSegs=SEV_ORDER.map(function(k){ return {label:sevLabel(k), v:fs.bySev[k], color:'var(--'+FLAG_SEV[k].tone+'-700)'}; });
+  const total=fs.total || 0;
+  const sevSegs=SEV_ORDER.map(function(k){
+    const cnt = fs.bySev[k] || 0;
+    const p = total > 0 ? Math.round((cnt / total) * 100) : 0;
+    return {
+      label: sevLabel(k),
+      count: cnt,
+      v: cnt,
+      pct: p,
+      col: 'var(--' + FLAG_SEV[k].tone + '-700)',
+      color: 'var(--' + FLAG_SEV[k].tone + '-700)'
+    };
+  });
   const chip=function(kind,val,label,count,tone){
     const on=(F[kind]||'all')===val;
     return '<button type="button" class="bi-fchip'+(on?' on':'')+(tone?' '+tone:'')+'" data-flag-filter="'+kind+'|'+val+'" aria-pressed="'+on+'">'
@@ -5396,10 +6206,24 @@ function adminOversight(){
   const node=adminScopeNode();
   const m=metricsFor(node);
   const isClass=node.level==='class';
+  const AR = S.settings.lang==='ar';
   return '<div class="bi-shell'+(S.biDensity==='compact'?' compact':'')+'">'
     + roleBar()
+    + '<div class="card mb" style="background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%);color:#FFF;border-radius:18px;padding:1.35rem 1.65rem;box-shadow:0 10px 30px rgba(15,23,42,0.18);border:1px solid rgba(255,255,255,0.12)">'
+    + '<div class="flex between center wrapw" style="gap:1rem">'
+    + '<div>'
+    + '<p class="eyebrow" style="margin:0 0 .3rem;color:var(--ischool-gold,#F59E0B);display:flex;align-items:center;gap:.4rem">🏛️ ' + (AR?'جمهورية مصر العربية — وزارة التربية والتعليم والتعليم الفني':'Arab Republic of Egypt — Ministry of Education') + '</p>'
+    + '<h1 style="margin:0;font-size:1.85rem;font-weight:900;color:#FFF">' + (AR?'منظومة الإشراف والذكاء الاستراتيجي القومي':'National Strategic BI & Governance Cockpit') + '</h1>'
+    + '<p class="small" style="margin:.3rem 0 0;color:#94A3B8">' + (AR?'متابعة الأداء الأكاديمي، الحضور القومي، وانضباط جلسات التقييم على مستوى كافة المحافظات والمديريات':'Real-time national oversight, attendance telemetry, and assessment SLA compliance') + '</p>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">'
+    + '<span class="tag ok" style="font-weight:800;padding:.4rem .85rem">🟢 ' + (AR?'الخوادم السيادية متصلة 24ms':'Sovereign Cloud Active') + '</span>'
+    + '<button type="button" class="btn gold sm" onclick="window.print()" style="font-weight:900">📄 ' + (AR?'تصدير التقرير التنفيذي':'Export Executive Report') + '</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>'
     + biCommandBar(node)
-    + '<div class="bi-head">'
+    + '<div class="bi-head" style="margin-top:.4rem">'
     +   '<div><p class="eyebrow">'+levelLabel(node.level)+(isClass?' · '+TR('Grade','الصف')+' '+(S.settings.lang==='ar'?arNum(node.grade):node.grade):'')+'</p>'
     +   '<h1>'+esc(nodeName(node))+'</h1>'
     +   '<p class="bi-head-sub">'+TR('Read-only oversight · support, not surveillance · no rankings','للعرض فقط · متابعة ودعم لا رقابة · بدون ترتيب تنافسي')+'</p></div>'
@@ -5425,55 +6249,487 @@ function auditPanel(){
     </ul></section>`;
 }
 
-/* ----- pilot monitoring: readiness diagnostic + 5 indicator families ----- */
+/* ===================== FIELD MONITORING & MINISTRY OVERSIGHT (المتابعة الميدانية) =====================
+   Organized around the 6 core ministerial pillars:
+   1. نظرة عامة (Overview)
+   2. الحضور (Attendance)
+   3. التقييمات (Assessments & Mastery)
+   4. متأخرات (Delinquencies & Delays)
+   5. التأقلم (Adaptability & Inclusion)
+   6. طباعة التقارير (Print & Export Official Report)
+*/
 function pilotView(){
-  const ind=[
-    {h:TR('Accessibility performance','أداء إمكانية الوصول'),items:[[TR('WCAG 2.2 AA audit pass rate','نسبة اجتياز تدقيق WCAG 2.2 AA'),'94%','ok'],[TR('Assistive-tech test sessions completed','جلسات اختبار التقنيات المساعِدة المكتملة'),'38 / 40','ok'],[TR('Content available in accessible formats','المحتوى بصيغ ميسّرة'),'71%','warn']]},
-    {h:TR('Operational reliability','الموثوقية التشغيلية'),items:[[TR('Uptime (pilot schools)','زمن التشغيل (مدارس التجربة)'),'99.6%','ok'],[TR('Low-bandwidth load success','نجاح التحميل بنطاق منخفض'),'91%','ok'],[TR('Assessment draft-preservation rate','نسبة حفظ مسوّدات التقييم'),'99.9%','ok'],[TR('Offline sync success','نجاح المزامنة دون اتصال'),'88%','warn']]},
-    {h:TR('System data availability','توفّر بيانات النظام'),items:[[TR('Classes with weekly activity','فصول بها نشاط أسبوعي'),'82%','ok'],[TR('Attendance data on time','بيانات حضور واردة في وقتها'),'76%','warn'],[TR('Assessment data on time','بيانات تقييم واردة في وقتها'),'69%','warn'],[TR('Pedagogical change (observed)','تغيّر تربوي (مُلاحَظ)'),TR('tracked','يُتابَع'),'info']]},
-    {h:TR('Student participation & equity','مشاركة الطلاب والإنصاف'),items:[[TR('Assessment completion','إكمال التقييم'),'84%','ok'],[TR('Dropout-risk follow-ups closed','متابعات مؤشر الإنذار المبكر المُغلقة'),'61%','warn'],[TR('Gap girls vs boys','الفجوة بين البنات والبنين'),TR('+2 pts','+2 نقطة'),'ok'],[TR('Gap accommodations vs none','فجوة ذوي التيسيرات مقابل غيرهم'),TR('-9 pts','-9 نقاط'),'warn']]},
-    {h:TR('Learning & continuity','التعلّم والاستمرارية'),items:[[TR('Short-cycle assessment trend','اتّجاه التقييم قصير الدورة'),'▲ +3.1','ok'],[TR('Absenteeism change','تغيّر التغيّب'),TR('▼ -1.4 pp','▼ -1.4 ن.م'),'ok'],[TR('Median intervention response','وسيط زمن الاستجابة للتدخّل'),TR('4 days','4 أيام'),'warn']]},
+  const tab = S.pilotTab || 'overview';
+  const AR = S.settings.lang === 'ar';
+  
+  const tabs = [
+    { id: 'overview', icon: 'insights', label: TR('Overview', 'نظرة عامة') },
+    { id: 'attendance', icon: 'calendar', label: TR('Attendance', 'الحضور') },
+    { id: 'assessments', icon: 'student', label: TR('Assessments', 'التقييمات') },
+    { id: 'delays', icon: 'alert', label: TR('Delays & Pending', 'متأخرات'), badge: '14' },
+    { id: 'adaptation', icon: 'sparkle', label: TR('Adaptability & Inclusion', 'التأقلم والدمج') },
+    { id: 'print', icon: 'pdf', label: TR('Print Reports', 'طباعة التقارير') }
   ];
-  const readiness=[
-    [TR('Mindset & buy-in','العقلية والقبول'),true],[TR('Budget secured','تأمين الميزانية'),true],[TR('Infrastructure & electricity','البنية التحتية والكهرباء'),false],
-    [TR('Device access','توفّر الأجهزة'),false],[TR('Connectivity quality','جودة الاتصال'),false],[TR('Human capacity & training','القدرة البشرية والتدريب'),true],
-    [TR('Digital resource quality','جودة الموارد الرقمية'),true],[TR('Helpdesk & support','مكتب المساعدة والدعم'),true],
-  ];
-  const ready=readiness.filter(r=>r[1]).length;
+
+  const tabBarHtml = `
+    <div class="bi-tabs-bar" role="tablist" style="margin-bottom:1.5rem;overflow-x:auto">
+      ${tabs.map(t => {
+        const on = tab === t.id ? ' on' : '';
+        return `<button type="button" class="bi-tab${on}" data-pilot-tab="${t.id}" role="tab" aria-selected="${tab===t.id}">
+          ${uiIcon(t.icon, 15)} <span>${t.label}</span>
+          ${t.badge ? `<span class="bi-badge ${tab===t.id?'':'risk'}">${t.badge}</span>` : ''}
+        </button>`;
+      }).join('')}
+    </div>
+  `;
+
+  let contentHtml = '';
+  if (tab === 'overview') contentHtml = renderPilotOverview();
+  else if (tab === 'attendance') contentHtml = renderPilotAttendance();
+  else if (tab === 'assessments') contentHtml = renderPilotAssessments();
+  else if (tab === 'delays') contentHtml = renderPilotDelays();
+  else if (tab === 'adaptation') contentHtml = renderPilotAdaptation();
+  else if (tab === 'print') contentHtml = renderPilotPrint();
+
   return `
-  <div class="page-head"><div><p class="eyebrow">${t('pilot')}</p><h1>${TR('Pilot with intent to scale','تجربة بهدف التوسّع')}</h1>
-  <p class="muted small" style="margin:0">${TR('A structured pilot across diverse schools — not a single national switch-on. Prove the workflow, verify accessibility with real users, then phase by governorate.','تجربة منظّمة عبر مدارس متنوّعة — لا تشغيل وطني دفعة واحدة. أثبت سير العمل، وتحقّق من إمكانية الوصول مع مستخدمين حقيقيين، ثمّ توسّع تدريجيًّا حسب المديرية.')}</p></div></div>
+    <div class="bi-shell" style="padding-bottom:2rem">
+      <div class="page-head" style="margin-bottom:1.25rem">
+        <div>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <span class="tag info" style="font-weight:800;font-size:.8rem">📍 ${TR('Ministry Field Operations','المتابعة الميدانية للوزارة')}</span>
+            <span class="muted small">${TR('National Pilot & Field Rollout','الرصد الميداني للمدارس ومراحل التوسع')}</span>
+          </div>
+          <h1 style="margin:.3rem 0 0;font-size:1.6rem;font-weight:900;color:var(--ink)">${TR('Field Monitoring & Operations','المتابعة الميدانية والتشغيلية')}</h1>
+          <p class="muted small" style="margin:.2rem 0 0">${TR('Structured operational tracking across pilot schools: attendance, mastery, pending issues, and inclusion.','متابعة تنفيذية للمدارس التجريبية، مؤشرات الحضور، التقييمات، تسوية المتأخرات، وملاءمة الدمج.')}</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+          <button type="button" class="btn sec sm" data-pilot-tab="print">${uiIcon('pdf', 14)} ${TR('Official Report','تقرير رسمي')}</button>
+        </div>
+      </div>
 
-  <div class="row" style="align-items:stretch">
-    <section class="card" style="flex:1;min-width:280px">
-      <p class="eyebrow">${TR('Readiness diagnostic','تشخيص الجاهزية')} · ${ready}/${readiness.length} ${TR('conditions met','شرط مُستوفى')}</p>
-      <h2 style="margin:.2rem 0 .6rem">${TR('Before any rollout','قبل أيّ تعميم')}</h2>
-      <ul style="list-style:none;padding:0;margin:0">
-        ${readiness.map(([k,ok])=>`<li class="flex between center" style="padding:.4rem 0;border-bottom:1px solid var(--line)">
-          <span>${esc(k)}</span>${ok?TR('<span class="tag ok">✓ Ready</span>','<span class="tag ok">✓ جاهز</span>'):TR('<span class="tag warn">● Needs work</span>','<span class="tag warn">● يحتاج عملًا</span>')}</li>`).join('')}
-      </ul>
-    </section>
-    <section class="card" style="flex:1;min-width:280px">
-      <p class="eyebrow">${TR('Deliberately diverse cohort','مجموعة متنوّعة عن قصد')}</p>
-      <h2 style="margin:.2rem 0 .6rem">${TR('Pilot schools','مدارس التجربة')}</h2>
-      <ul class="small" style="padding-inline-start:1.1rem;margin:0">
-        <li class="mb">${TR('High- and low-connectivity schools side by side','مدارس عالية وضعيفة الاتصال جنبًا إلى جنب')}</li>
-        <li class="mb">${TR('Schools already active in inclusion (Upper Egypt) + new ones','مدارس ناشطة في الدمج (صعيد مصر) + أخرى جديدة')}</li>
-        <li class="mb">${TR('Schools with heavy administrative load','مدارس ذات عبء إداري ثقيل')}</li>
-        <li>${TR('Each school: initial training + in-school coaching + repeated support (not webinars alone)','كلّ مدرسة: تدريب أوّلي + إرشاد داخل المدرسة + دعم متكرّر (لا ندوات عن بُعد وحدها)')}</li>
-      </ul>
-      <p class="tag info mt">${TR('Early-warning lesson: a dashboard helps when it pairs clear risk info with a specific action — proven to cut dropout at ~US$2–3/student.','درس الإنذار المبكّر: تنفع اللوحة حين تقرن معلومة الخطر الواضحة بإجراء محدّد — ثبت أنّها تقلّل التسرّب بكلفة ~2–3 دولار/طالب.')}</p>
-    </section>
-  </div>
+      ${tabBarHtml}
+      <div class="pilot-pane-wrap">
+        ${contentHtml}
+      </div>
+    </div>
+  `;
+}
 
-  <h2 class="mt2">${TR('Indicators tracked from day one','مؤشّرات تُتابَع من اليوم الأوّل')}</h2>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
-    ${ind.map(g=>`<section class="card"><h3 style="margin-top:0">${g.h}</h3>
-      <table><caption class="sr-only">${g.h}</caption><tbody>
-      ${g.items.map(([k,v,tone])=>`<tr><th scope="row" style="position:static;font-weight:600">${esc(k)}</th>
-        <td style="text-align:end"><span class="tag ${tone}">${esc(v)}</span></td></tr>`).join('')}
-      </tbody></table></section>`).join('')}
-  </div>`;
+function renderPilotOverview(){
+  const readiness = [
+    [TR('Mindset & buy-in','العقلية والقبول المؤسسي'), true],
+    [TR('Budget secured','تأمين الميزانية التشغيلية'), true],
+    [TR('Infrastructure & electricity','البنية التحتية والكهرباء'), false],
+    [TR('Device access','توفّر الأجهزة اللوحية'), false],
+    [TR('Connectivity quality','جودة الاتصال والشبكات'), false],
+    [TR('Human capacity & training','القدرة البشرية والتدريب الميداني'), true],
+    [TR('Digital resource quality','جودة الموارد الرقمية'), true],
+    [TR('Helpdesk & support','مكتب المساعدة والدعم الفني'), true]
+  ];
+  const readyCount = readiness.filter(r=>r[1]).length;
+
+  const cohorts = [
+    { name: TR('Maadi STEM High School (Cairo)','مدرسة المعادي ستيم (القاهرة)'), type: TR('High Connectivity','عالية الاتصال · كثافة نشطة'), att: '92%', mastery: '88%', status: 'ok' },
+    { name: TR('Al-Nasr Prep (North Sinai)','مدرسة النصر الإعدادية (شمال سيناء)'), type: TR('Low-bandwidth & Remote','اتصال ضعيف · مناطق حدودية'), att: '78%', mastery: '71%', status: 'warn' },
+    { name: TR('Taiba Integrated (Luxor)','مدرسة طيبة المتميزة (الأقصر)'), type: TR('Inclusion & Accommodations','دمج صعيد مصر · تيسيرات مساندة'), att: '84%', mastery: '76%', status: 'ok' },
+    { name: TR('Edfu Prep (Aswan)','مدرسة إدفو الإعدادية (أسوان)'), type: TR('Heavy Admin Load','عبء إداري · مزامنة غير متصلة'), att: '76%', mastery: '68%', status: 'risk' }
+  ];
+
+  return `
+    <div class="bi-kpis" style="margin-bottom:1.5rem">
+      ${biKpi({
+        tone: 'ok',
+        label: TR('Readiness Diagnostic', 'تشخيص الجاهزية الميدانية'),
+        num: `${readyCount} / ${readiness.length}`,
+        spark: [40, 50, 62, 62],
+        ctx: TR('Conditions verified before scaling', 'شروط مستوفاة قبل بدء التعميم')
+      })}
+      ${biKpi({
+        tone: 'info',
+        label: TR('Weekly Active Classes', 'الفصول النشطة أسبوعياً'),
+        num: '82%',
+        spark: [70, 75, 80, 82],
+        ctx: TR('Active LMS engagement rate', 'نسبة الفصول التي تسجل نشاطاً')
+      })}
+      ${biKpi({
+        tone: 'info',
+        label: TR('Field Attendance Rate', 'متوسط الحضور الميداني'),
+        num: '82%',
+        spark: [79, 81, 80, 82],
+        ctx: TR('Across all pilot schools', 'عبر كافة مدارس التجربة')
+      })}
+      ${biKpi({
+        tone: 'warn',
+        label: TR('Open Delays & Alerts', 'المتأخرات والتنبيهات المفتوحة'),
+        num: '14',
+        spark: [22, 19, 16, 14],
+        ctx: TR('Actionable field cases pending', 'حالات تحتاج تدخلاً ومتابعة')
+      })}
+    </div>
+
+    <div class="bi-grid two" style="margin-bottom:1.5rem">
+      <div class="bi-panel">
+        <div class="bi-phead">
+          <h3>${uiIcon('check', 16)} ${TR('Readiness Checklist (Before Scaling)','تشخيص الجاهزية قبل التعميم')}</h3>
+          <span class="tag ok">${readyCount}/${readiness.length} ${TR('Ready','مستوفى')}</span>
+        </div>
+        <ul style="list-style:none;padding:0;margin:0">
+          ${readiness.map(([k, ok]) => `
+            <li class="flex between center" style="padding:.55rem 0;border-bottom:1px solid var(--line)">
+              <span style="font-weight:700;font-size:.85rem">${esc(k)}</span>
+              ${ok ? `<span class="tag ok" style="font-size:.76rem">✓ ${TR('Ready','جاهز')}</span>` : `<span class="tag warn" style="font-size:.76rem">● ${TR('Needs work','يحتاج عملًا')}</span>`}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+
+      <div class="bi-panel">
+        <div class="bi-phead">
+          <h3>${uiIcon('school', 16)} ${TR('Diverse Pilot Cohorts','عينة المدارس الميدانية')}</h3>
+          <span class="tag info">${cohorts.length} ${TR('Schools','مدارس نموذجية')}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+          ${cohorts.map(c => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.65rem .8rem;background:var(--sand);border-radius:var(--radius);border-inline-start:4px solid var(--${c.status==='risk'?'risk':c.status==='warn'?'warn':'ok'}-700)">
+              <div>
+                <h4 style="margin:0;font-size:.88rem;font-weight:800">${c.name}</h4>
+                <p class="tiny muted" style="margin:.15rem 0 0">${c.type}</p>
+              </div>
+              <div style="text-align:end;display:flex;gap:.5rem;align-items:center">
+                <span class="tag hi" style="font-size:.74rem">حضور ${c.att}</span>
+                <span class="tag ${c.status==='risk'?'risk':c.status==='warn'?'warn':'ok'}" style="font-size:.74rem">درجات ${c.mastery}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="tag info" style="margin-top:1rem;font-size:.78rem;line-height:1.4">
+          💡 ${TR('Early Warning Lesson: Dashboards deliver ROI when coupled with clear, designated intervention procedures.','درس الإنذار المبكر: تحقق اللوحة أعلى عائد حين تقترن بمسار تدخل واضح وسريع لتقليل التسرب.')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPilotAttendance(){
+  const mudiriyas = [
+    { name: TR('Cairo Mudiriya','مديرية القاهرة'), schools: 18, rate: '86%', ontime: '89%', excused: '4.2%', trend: '▲ +1.2%' },
+    { name: TR('Alexandria Mudiriya','مديرية الإسكندرية'), schools: 14, rate: '84%', ontime: '84%', excused: '3.8%', trend: '▲ +0.8%' },
+    { name: TR('Aswan Mudiriya','مديرية أسوان'), schools: 10, rate: '81%', ontime: '78%', excused: '5.1%', trend: '▼ -0.4%' },
+    { name: TR('North Sinai Mudiriya','مديرية شمال سيناء'), schools: 8, rate: '77%', ontime: '71%', excused: '6.4%', trend: '▲ +1.5%' },
+    { name: TR('Luxor Mudiriya','مديرية الأقصر'), schools: 8, rate: '83%', ontime: '82%', excused: '4.0%', trend: '▲ +0.5%' },
+    { name: TR('Faiyum Mudiriya','مديرية الفيوم'), schools: 12, rate: '79%', ontime: '74%', excused: '5.8%', trend: '▼ -0.9%' }
+  ];
+
+  return `
+    <div class="bi-kpis" style="margin-bottom:1.5rem">
+      ${biKpi({ tone:'ok', label:TR('Average Attendance Rate','متوسط الحضور بالمدارس'), num:'82%', spark:[79,80,81,82], ctx:TR('Continuous daily monitoring','رصد يومي مستمر') })}
+      ${biKpi({ tone:'info', label:TR('On-Time Attendance Data','بيانات الحضور الواردة في وقتها'), num:'76%', spark:[65,70,74,76], ctx:TR('Within 30 min of bell','خلال نصف ساعة من طابور الصباح') })}
+      ${biKpi({ tone:'ok', label:TR('Absenteeism Reduction','تراجع معدل التغيب'), num:'▼ -1.4 pp', spark:[3,2.4,1.8,1.4], ctx:TR('Positive drop compared to baseline','انخفاض مقارنة بخط الأساس') })}
+      ${biKpi({ tone:'info', label:TR('Median Recording Speed','وسيط زمن الرصد اليومي'), num:'15 min', spark:[25,20,18,15], ctx:TR('Average time per classroom','متوسط الوقت للفصل') })}
+    </div>
+
+    <div class="bi-panel" style="margin-bottom:1.5rem">
+      <div class="bi-phead">
+        <h3>${uiIcon('calendar', 16)} ${TR('Field Attendance by Directorate','جدول الحضور الميداني بالمديريات التجريبية')}</h3>
+        <span class="muted small">${mudiriyas.length} ${TR('Directorates','مديريات')}</span>
+      </div>
+      <div class="tbl-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">${TR('Directorate','المديرية')}</th>
+              <th scope="col">${TR('Pilot Schools','مدارس التجربة')}</th>
+              <th scope="col">${TR('Attendance Rate','نسبة الحضور')}</th>
+              <th scope="col">${TR('On-Time Submission','الرصد في الموعد')}</th>
+              <th scope="col">${TR('Excused Share','نسبة الأعذار')}</th>
+              <th scope="col">${TR('Weekly Trend','الاتجاه الأسبوعي')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${mudiriyas.map(m => `
+              <tr>
+                <td style="font-weight:800">${m.name}</td>
+                <td>${m.schools}</td>
+                <td><span class="tag ${parseInt(m.rate)>=80?'ok':'warn'}">${m.rate}</span></td>
+                <td><span class="tag ${parseInt(m.ontime)>=75?'ok':'warn'}">${m.ontime}</span></td>
+                <td>${m.excused}</td>
+                <td style="color:${m.trend.includes('▲')?'var(--ok-700)':'var(--risk-700)'};font-weight:800">${m.trend}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderPilotAssessments(){
+  const subjects = [
+    { name: TR('Arabic Language','اللغة العربية'), avg: '74%', comp: '88%', trend: '▲ +2.8', status: 'ok' },
+    { name: TR('Mathematics','الرياضيات'), avg: '68%', comp: '82%', trend: '▲ +3.4', status: 'ok' },
+    { name: TR('Science','العلوم'), avg: '73%', comp: '85%', trend: '▲ +3.1', status: 'ok' },
+    { name: TR('English Language','اللغة الإنجليزية'), avg: '71%', comp: '80%', trend: '▲ +2.5', status: 'ok' },
+    { name: TR('Social Studies','الدراسات الاجتماعية'), avg: '76%', comp: '86%', trend: '▲ +1.9', status: 'ok' }
+  ];
+
+  return `
+    <div class="bi-kpis" style="margin-bottom:1.5rem">
+      ${biKpi({ tone:'ok', label:TR('Assessment Completion','نسبة إكمال التقييمات'), num:'84%', spark:[72,78,81,84], ctx:TR('Weekly formative quizzes','التقييمات التكوينية الأسبوعية') })}
+      ${biKpi({ tone:'info', label:TR('Average Formative Grade','متوسط درجات الطلاب'), num:'72%', spark:[67,69,70,72], ctx:TR('Calculated mastery level','معدل التحصيل الدراسي') })}
+      ${biKpi({ tone:'ok', label:TR('Short-Cycle Trend','تحسن التقييم قصير الدورة'), num:'▲ +3.1 pts', spark:[0.5,1.2,2.3,3.1], ctx:TR('Measured academic progression','تقدم ملحوظ بالدرجات') })}
+      ${biKpi({ tone:'warn', label:TR('On-Time Assessment Data','بيانات التقييم في موعدها'), num:'69%', spark:[58,62,65,69], ctx:TR('Pending teacher mark entries','بانتظار رصد باقي المعلمين') })}
+    </div>
+
+    <div class="bi-panel" style="margin-bottom:1.5rem">
+      <div class="bi-phead">
+        <h3>${uiIcon('grading', 16)} ${TR('Subject Mastery Matrix','مصفوفة أداء المواد والتقييمات')}</h3>
+        <span class="tag ok">${subjects.length} ${TR('Core Subjects','مواد أساسية')}</span>
+      </div>
+      <div class="tbl-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">${TR('Subject','المادة الدراسية')}</th>
+              <th scope="col">${TR('Average Score','متوسط الدرجات')}</th>
+              <th scope="col">${TR('Completion Rate','نسبة الإكمال')}</th>
+              <th scope="col">${TR('Cycle Improvement','التحسن الدوري')}</th>
+              <th scope="col">${TR('Evaluation','التقييم العام')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${subjects.map(s => `
+              <tr>
+                <td style="font-weight:800">${s.name}</td>
+                <td><span class="tag ${parseInt(s.avg)>=70?'ok':'warn'}">${s.avg}</span></td>
+                <td><span class="tag info">${s.comp}</span></td>
+                <td style="color:var(--ok-700);font-weight:800">${s.trend}</td>
+                <td><span class="tag ok">✓ ${TR('Stable','مستقر')}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderPilotDelays(){
+  const delays = [
+    { school: TR('Al-Salam Prep (Aswan)','مدرسة السلام الإعدادية (أسوان)'), issue: TR('Offline sync delayed > 48h','تأخر مزامنة البيانات لأكثر من 48 ساعة'), type: TR('Connectivity','اتصال ومزامنة'), sev: 'risk', age: '3 days' },
+    { school: TR('Edfu Boys School (Aswan)','مدرسة بنين إدفو (أسوان)'), issue: TR('3 Classrooms missing attendance data','غياب بيانات الحضور لـ 3 فصول'), type: TR('Attendance','سجلات حضور'), sev: 'risk', age: '2 days' },
+    { school: TR('Rafah Model School (N. Sinai)','مدرسة رفح النموذجية (شمال سيناء)'), issue: TR('Grade 8 Science assessment marks pending','تأخر رصد درجات تقييم العلوم للصف الثاني الإعدادي'), type: TR('Assessments','رصد درجات'), sev: 'warn', age: '4 days' },
+    { school: TR('Al-Qusair High (Red Sea)','مدرسة القصير الثانوية (البحر الأحمر)'), issue: TR('2 At-risk student intervention flags open','تنبيهان مفتوحان لمتابعة خطر التسرب'), type: TR('Dropout Risk','إنذار مبكر'), sev: 'warn', age: '5 days' },
+    { school: TR('Tahrir Prep (Faiyum)','مدرسة التحرير (الفيوم)'), issue: TR('Weekly practice quiz submission pending','تأخر إرسال نتائج تدريب الرياضيات الأسبوعي'), type: TR('Assessments','تقييمات'), sev: 'warn', age: '2 days' }
+  ];
+
+  return `
+    <div style="background:var(--risk-050);border:1.5px solid var(--risk-700);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <span style="font-size:1.8rem">⚠️</span>
+        <div>
+          <h3 style="margin:0;color:var(--risk-700);font-size:1.1rem;font-weight:900">${TR('14 Actionable Delinquencies Pending Resolution','14 متأخرة تشغيلية وميدانية قيد المتابعة')}</h3>
+          <p class="small" style="margin:.2rem 0 0;color:var(--ink-2)">${TR('Requires school contact and technical support coordination to maintain accurate data streams.','تتطلب تدخلاً ومتابعة مباشرة مع إدارات المدارس لضمان استمرارية تدفق البيانات.')}</p>
+        </div>
+      </div>
+      <button type="button" class="btn sm" onclick="toast(TR('Sync notifications dispatched to directorates','تم إرسال تنبيهات المتابعة للمديريات المعنية'))">${uiIcon('send',13)} ${TR('Broadcast Reminder','إرسال تذكير للمديريات')}</button>
+    </div>
+
+    <div class="bi-kpis" style="margin-bottom:1.5rem">
+      ${biKpi({ tone:'risk', label:TR('Offline Sync Delays','تأخر مزامنة البيانات'), num:'4', spark:[8,6,5,4], ctx:TR('Schools without sync > 48h','مدارس لم تتزامن منذ يومين') })}
+      ${biKpi({ tone:'warn', label:TR('Pending Assessment Marks','درجات بانتظار الاعتماد'), num:'5', spark:[10,8,7,5], ctx:TR('Classrooms with delayed scores','فصول لم يكتمل رصدها') })}
+      ${biKpi({ tone:'warn', label:TR('Open Dropout Follow-ups','متابعات إنذار مبكر مفتوحة'), num:'5', spark:[12,9,7,5], ctx:TR('At-risk students being tracked','طلاب قيد المتابعة الاجتماعية') })}
+      ${biKpi({ tone:'ok', label:TR('Median Response Time','وسيط زمن معالجة التأخر'), num:'4 days', spark:[7,6,5,4], ctx:TR('Speed of issue resolution','سرعة الاستجابة والدعم') })}
+    </div>
+
+    <div class="bi-panel">
+      <div class="bi-phead">
+        <h3>${uiIcon('alert', 16)} ${TR('Active Delinquencies Ledger','كشف المتأخرات الميدانية والإجراءات')}</h3>
+        <span class="tag risk">14 ${TR('Cases','حالة')}</span>
+      </div>
+      <div class="tbl-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">${TR('School & District','المدرسة والإدارة')}</th>
+              <th scope="col">${TR('Delinquency Details','تفاصيل المتأخرة')}</th>
+              <th scope="col">${TR('Category','النوع')}</th>
+              <th scope="col">${TR('Elapsed Time','المدة')}</th>
+              <th scope="col" style="text-align:end">${TR('Action','الإجراء الفوري')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${delays.map(d => `
+              <tr>
+                <td style="font-weight:800">${d.school}</td>
+                <td>${d.issue}</td>
+                <td><span class="tag info">${d.type}</span></td>
+                <td><span class="tag ${d.sev==='risk'?'risk':'warn'}">${d.age}</span></td>
+                <td style="text-align:end">
+                  <button type="button" class="btn xs sec" onclick="toast(TR('Follow-up ticket initiated','تم فتح تذكرة دعم ومتابعة للمدرسة'))">${TR('Follow up','متابعة')} ${aFwd()}</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderPilotAdaptation(){
+  return `
+    <div class="bi-kpis" style="margin-bottom:1.5rem">
+      ${biKpi({ tone:'ok', label:TR('WCAG 2.2 AA Accessibility','نسبة اجتياز تدقيق النفاذ'), num:'94%', spark:[85,88,91,94], ctx:TR('Full accessibility compliance','مطابقة تامة لمعايير الوصول') })}
+      ${biKpi({ tone:'ok', label:TR('Assistive Tech Tests','جلسات التقنيات المساندة'), num:'38 / 40', spark:[20,28,34,38], ctx:TR('Tested with real users with disability','اختبارات مع مستخدمين حقيقيين') })}
+      ${biKpi({ tone:'ok', label:TR('Low-Bandwidth Load','نجاح التحميل بنطاق منخفض'), num:'91%', spark:[82,86,89,91], ctx:TR('Resilience on 2G / weak links','العمل بكفاءة على شبكات ضعيفة') })}
+      ${biKpi({ tone:'warn', label:TR('Accessible Formats Share','المحتوى بصيغ ميسّرة'), num:'71%', spark:[50,58,65,71], ctx:TR('Screen readers & easy fonts','قارئ شاشة وصيغ مبسطة') })}
+    </div>
+
+    <div class="bi-grid two" style="margin-bottom:1.5rem">
+      <div class="bi-panel">
+        <div class="bi-phead">
+          <h3>${uiIcon('people', 16)} ${TR('Equity & Demographic Gaps','مؤشرات الإنصاف والفجوات التعليمية')}</h3>
+          <span class="tag ok">${TR('Tracked','مراقبة دقيقة')}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1rem;margin-top:.5rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:var(--sand);border-radius:var(--radius)">
+            <div>
+              <strong style="font-size:.88rem">${TR('Gender Parity (Girls vs Boys)','الفجوة بين البنات والبنين')}</strong>
+              <p class="tiny muted" style="margin:.15rem 0 0">${TR('Girls leading in formative assessment completion','معدل إكمال التقييمات لصالح البنات')}</p>
+            </div>
+            <span class="tag ok" style="font-weight:900">+2 ${TR('pts','نقطة')}</span>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:var(--sand);border-radius:var(--radius)">
+            <div>
+              <strong style="font-size:.88rem">${TR('Accommodated Students Gap','فجوة ذوي التيسيرات مقابل غيرهم')}</strong>
+              <p class="tiny muted" style="margin:.15rem 0 0">${TR('Targeted intervention to reduce support gap','برامج دعم إضافية لتضييق الفجوة')}</p>
+            </div>
+            <span class="tag warn" style="font-weight:900">-9 ${TR('pts','نقاط')}</span>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:var(--sand);border-radius:var(--radius)">
+            <div>
+              <strong style="font-size:.88rem">${TR('Offline Sync Recovery Rate','معدل استعادة البيانات بعد انقطاع الاتصال')}</strong>
+              <p class="tiny muted" style="margin:.15rem 0 0">${TR('No data loss during disconnection sessions','حفظ كامل للمسوّدات دون فقدان')}</p>
+            </div>
+            <span class="tag ok" style="font-weight:900">88%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bi-panel">
+        <div class="bi-phead">
+          <h3>${uiIcon('sparkle', 16)} ${TR('Inclusion Standards Enforced','معايير الدمج المعتمدة بالنظام')}</h3>
+          <span class="tag info">${TR('Universal Design','تصميم شامل')}</span>
+        </div>
+        <ul class="small" style="padding-inline-start:1.2rem;margin:0;line-height:1.7">
+          <li>${TR('Non-punitive attendance tracking preserving excused absences.','رصد الحضور بنهج داعم يحافظ على خصوصية الأعذار المرضية.')}</li>
+          <li>${TR('One-click screen reader and audio read-aloud support on all student lessons.','دعم قراءة النصوص بالصوت بنقرة واحدة لكافة دروس ومسائل الطلاب.')}</li>
+          <li>${TR('Offline SD-card packet distribution for low-connectivity remote schools.','توزيع حزم الدروس بدون إنترنت عبر بطاقات SD للمناطق النائية.')}</li>
+          <li>${TR('Strict PDPL compliance: K-Anonymity ensures no subgroup smaller than 10 is exposed.','حماية خصوصية البيانات: حجب أي عينة إحصائية تقل عن 10 طلاب.')}</li>
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+function renderPilotPrint(){
+  const dateStr = new Date().toLocaleDateString('ar-EG', { year:'numeric', month:'long', day:'numeric' });
+  
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+      <div>
+        <h3 style="margin:0;font-size:1.2rem;font-weight:900">${TR('Official Field Monitoring Brief (Printable)','التقرير التنفيذي للمتابعة الميدانية (جاهز للطباعة)')}</h3>
+        <p class="muted small" style="margin:.2rem 0 0">${TR('Official ministerial summary ready for printing and archival.','تقرير رسمي معتمد يتضمن المؤشرات الستة والتوصيات التنفيذية.')}</p>
+      </div>
+      <button type="button" class="btn" onclick="window.print()" data-print-report>
+        ${uiIcon('print', 16)} ${TR('Print Official Document','🖨️ طباعة التقرير الرسمي')}
+      </button>
+    </div>
+
+    <div id="report-doc" class="report-doc" style="background:#FFFFFF;color:#0F172A;padding:2.5rem 3rem;border:2px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-md);max-width:850px;margin:0 auto;font-family:var(--font)">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2.5px solid #0B192C;padding-bottom:1.2rem;margin-bottom:1.5rem">
+        <div style="text-align:start">
+          <p style="margin:0;font-weight:800;font-size:.9rem;color:#0B192C">جمهورية مصر العربية</p>
+          <p style="margin:.15rem 0;font-weight:800;font-size:.9rem;color:#0B192C">وزارة التربية والتعليم والتعليم الفني</p>
+          <p style="margin:0;font-size:.78rem;color:#64748B">قطاع التعليم العام · الإدارة المركزية للمتابعة</p>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:2rem">🏛️</div>
+        </div>
+        <div style="text-align:end">
+          <p style="margin:0;font-size:.8rem;font-weight:700">التاريخ: ${dateStr}</p>
+          <p style="margin:.15rem 0;font-size:.78rem;color:#64748B">الرقم المرجعي: REP-PILOT-2026/08</p>
+          <span class="tag ok" style="font-size:.72rem">وثيقة رسمية معتمدة</span>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-bottom:1.75rem">
+        <h2 style="margin:0;font-size:1.35rem;font-weight:900;color:#0B192C">تقرير المتابعة الميدانية والتشغيلية الشامل</h2>
+        <p style="margin:.3rem 0 0;font-size:.85rem;color:#475569">تقييم مؤشرات التجربة الميدانية وجاهزية المدارس للتوسع والمتابعة</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:.75rem;margin-bottom:1.5rem">
+        <div style="padding:.75rem;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;text-align:center">
+          <span style="font-size:.75rem;color:#64748B;display:block">معدل الحضور العام</span>
+          <strong style="font-size:1.2rem;color:#0B192C">82%</strong>
+        </div>
+        <div style="padding:.75rem;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;text-align:center">
+          <span style="font-size:.75rem;color:#64748B;display:block">متوسط الدرجات والتحصيل</span>
+          <strong style="font-size:1.2rem;color:#0B192C">72%</strong>
+        </div>
+        <div style="padding:.75rem;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;text-align:center">
+          <span style="font-size:.75rem;color:#64748B;display:block">المتأخرات قيد المتابعة</span>
+          <strong style="font-size:1.2rem;color:#DC2626">14 حالة</strong>
+        </div>
+      </div>
+
+      <h4 style="margin:1.2rem 0 .5rem;color:#0B192C;font-size:.95rem">أولاً: ملخص المؤشرات الميدانية الخمسة</h4>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:1.5rem;font-size:.82rem">
+        <thead>
+          <tr style="background:#F1F5F9;border-bottom:1.5px solid #CBD5E1">
+            <th style="padding:.5rem;text-align:start">المحور</th>
+            <th style="padding:.5rem;text-align:center">المؤشر الرئيسي</th>
+            <th style="padding:.5rem;text-align:center">النسبة المحققة</th>
+            <th style="padding:.5rem;text-align:center">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #E2E8F0"><td style="padding:.45rem;font-weight:700">1. الحضور والانضباط</td><td style="text-align:center">بيانات الحضور الواردة في وقتها</td><td style="text-align:center">76%</td><td style="text-align:center">✓ مستقر</td></tr>
+          <tr style="border-bottom:1px solid #E2E8F0"><td style="padding:.45rem;font-weight:700">2. التحصيل والتقييمات</td><td style="text-align:center">إكمال التقييمات التكوينية</td><td style="text-align:center">84%</td><td style="text-align:center">✓ مستقر</td></tr>
+          <tr style="border-bottom:1px solid #E2E8F0"><td style="padding:.45rem;font-weight:700">3. الموثوقية التشغيلية</td><td style="text-align:center">استقرار النظام ومزامنة البيانات</td><td style="text-align:center">99.6%</td><td style="text-align:center">✓ ممتاز</td></tr>
+          <tr style="border-bottom:1px solid #E2E8F0"><td style="padding:.45rem;font-weight:700">4. سهولة النفاذ والدمج</td><td style="text-align:center">مطابقة معايير النفاذ الرقمي WCAG</td><td style="text-align:center">94%</td><td style="text-align:center">✓ مستوفى</td></tr>
+          <tr><td style="padding:.45rem;font-weight:700">5. المعالجة والإنذار المبكر</td><td style="text-align:center">وسيط زمن الاستجابة للحالات</td><td style="text-align:center">4 أيام</td><td style="text-align:center">● يحتاج تسريع</td></tr>
+        </tbody>
+      </table>
+
+      <h4 style="margin:1.2rem 0 .5rem;color:#0B192C;font-size:.95rem">ثانياً: التوصيات الميدانية والقرارات المعتمدة</h4>
+      <ol style="margin:0;padding-inline-start:1.2rem;font-size:.82rem;line-height:1.6;color:#334155">
+        <li>توجيه فرق الدعم الفني للمدارس الـ 4 المتأخرة في مزامنة البيانات بأسوان والفيوم.</li>
+        <li>تعزيز تدريب المعلمين على رصد درجات التقييم الأسبوعي خلال 24 ساعة من أداء الطلاب.</li>
+        <li>الاستمرار في دعم الطلاب ذوي التيسيرات وتوسيع توزيع حزم الدروس بدون إنترنت للمناطق النائية.</li>
+      </ol>
+
+      <div style="display:flex;justify-content:space-between;margin-top:2.5rem;padding-top:1.5rem;border-top:1.5px dashed #CBD5E1;font-size:.82rem">
+        <div style="text-align:center;width:180px">
+          <p style="margin:0;font-weight:800">مدير المتابعة الميدانية</p>
+          <div style="height:35px"></div>
+          <p style="margin:0;color:#64748B">.................................</p>
+        </div>
+        <div style="text-align:center;width:180px">
+          <p style="margin:0;font-weight:800">رئيس الإدارة المركزية</p>
+          <div style="height:35px"></div>
+          <p style="margin:0;color:#64748B">.................................</p>
+        </div>
+        <div style="text-align:center;width:180px">
+          <p style="margin:0;font-weight:800">يعتمد، وزير التربية والتعليم</p>
+          <div style="height:35px"></div>
+          <p style="margin:0;color:#64748B">.................................</p>
+        </div>
+      </div>
+    </div>
+  `;
 }
 /* ===================== OFFLINE-SCHOOL COORDINATOR (separate upload flow) ===================== */
 /* ===================== DEVELOPER NOTES (per-page rationale) =====================
@@ -6744,7 +8000,7 @@ function tpdModuleView(id){
       <a class="btn sec sm" href="${m.pdfPath}" target="_blank" rel="noopener" style="white-space:nowrap"><span aria-hidden="true">⤢</span> ${AR?'فتح بملء الصفحة':'Open full-page'}</a>
     </div>
     <a href="#after-tpd-pdf" class="skip-pdf">${TR('Skip past the document','تخطّي إلى ما بعد المستند')}</a>
-    <iframe src="${m.pdfPath}#view=FitH" title="${esc(AR?m.pdfTitle[1]:m.pdfTitle[0])}" loading="lazy" style="width:100%;height:70vh;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>
+    ${typeof window !== 'undefined' && window.location && window.location.protocol === 'file:' ? '' : `<iframe src="${m.pdfPath}#view=FitH" title="${esc(AR?m.pdfTitle[1]:m.pdfTitle[0])}" loading="lazy" style="width:100%;height:70vh;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>`}
     <span id="after-tpd-pdf"></span>
   </div>` : '';
   const videoBlock = m.ytId ? `
@@ -7100,7 +8356,6 @@ function reportBody(t,node){
       <tr><th>${TR('Students in scope','الطلاب في النطاق')}</th><td>${cohortOf(node).toLocaleString()}</td></tr>
       <tr><th>${TR('Student attendance','حضور الطلاب')}</th><td>${m.attendance}% <span class="muted">(${TR('target','المستهدف')} 90%)</span></td></tr>
       <tr><th>${TR('Assessment average','متوسّط التقييم')}</th><td>${m.mastery}% <span class="muted">(65%)</span></td></tr>
-      <tr><th>${TR('Teacher attendance','حضور المعلّمين')}</th><td>${m.teacherAttendance}% <span class="muted">(92%)</span></td></tr>
       <tr><th>${TR('At dropout risk','معرّضون للتسرّب')}</th><td>${atRiskOf(node).toLocaleString()} (${m.dropoutRiskPct}%)</td></tr>
     </tbody></table>
     ${kids.length?`<h3>${TR('Areas to support first','الأماكن الأَولى بالدعم')}</h3>
@@ -7120,8 +8375,8 @@ function reportBody(t,node){
   }
   // data table
   const kids=node.children||[];
-  return `<table class="rep-tbl"><thead><tr><th>${childLabel(node.level)}</th><th>${TR('Students','الطلاب')}</th><th>${TR('Attendance','الحضور')}</th><th>${TR('Assessment','التقييم')}</th><th>${TR('Teacher att.','حضور المعلّمين')}</th><th>${TR('Dropout %','مؤشر الإنذار المبكر')}</th></tr></thead>
-  <tbody>${kids.map(ch=>{const cm=metricsFor(ch);return `<tr><td>${esc(nodeName(ch))}</td><td>${cohortOf(ch).toLocaleString()}</td><td>${cm.attendance}%</td><td>${cm.mastery}%</td><td>${cm.teacherAttendance}%</td><td>${cm.dropoutRiskPct}%</td></tr>`;}).join('')||`<tr><td colspan="6">${TR('No sub-units at this scope.','لا وحدات فرعية في هذا النطاق.')}</td></tr>`}</tbody></table>`;
+  return `<table class="rep-tbl"><thead><tr><th>${childLabel(node.level)}</th><th>${TR('Students','الطلاب')}</th><th>${TR('Attendance','الحضور')}</th><th>${TR('Assessment','التقييم')}</th><th>${TR('Dropout %','مؤشر الإنذار المبكر')}</th></tr></thead>
+  <tbody>${kids.map(ch=>{const cm=metricsFor(ch);return `<tr><td>${esc(nodeName(ch))}</td><td>${cohortOf(ch).toLocaleString()}</td><td>${cm.attendance}%</td><td>${cm.mastery}%</td><td>${cm.dropoutRiskPct}%</td></tr>`;}).join('')||`<tr><td colspan="5">${TR('No sub-units at this scope.','لا وحدات فرعية في هذا النطاق.')}</td></tr>`}</tbody></table>`;
 }
 function reportDoc(node){
   const t=S.report.type;
@@ -7138,9 +8393,9 @@ function reportDoc(node){
 }
 function reportCSV(node){
   const sep=','; const q=v=>`"${String(v).replace(/"/g,'""')}"`;
-  const lines=[[childLabel(node.level),'Students','Attendance%','Assessment%','TeacherAtt%','DropoutRisk%'].map(q).join(sep)];
+  const lines=[[childLabel(node.level),'Students','Attendance%','Assessment%','DropoutRisk%'].map(q).join(sep)];
   (node.children||[]).forEach(ch=>{const cm=metricsFor(ch);
-    lines.push([nodeName(ch),cohortOf(ch),cm.attendance,cm.mastery,cm.teacherAttendance,cm.dropoutRiskPct].map(q).join(sep));});
+    lines.push([nodeName(ch),cohortOf(ch),cm.attendance,cm.mastery,cm.dropoutRiskPct].map(q).join(sep));});
   return lines.join('\r\n');
 }
 function reportsView(){
@@ -7639,7 +8894,91 @@ function drilldownModalOverlay(){
   const AR = S.settings.lang==='ar';
   
   let content = '';
-  if(d.type === 'student'){
+  if(d.type === 'subject_calc'){
+    const su = d.subject || 'Science';
+    const subjLabel = AR ? (SUBJECTS_AR[su] || su) : su;
+    const st = STUDENT_SELF;
+    const score = st.mastery[su] || 75;
+    const exm = examMarkFor(st, su);
+    const dynRes = calculateDynamicStudentAverage(st, S.dateRange);
+
+    const calcItems = dynRes.items.length ? dynRes.items : [
+      { name: AR?'تقييم تشخيصي - الوحدة 1':'Diagnostic 1', dueDate:'2026-02-22', score: score, maxMarks:100, weight:1 },
+      { name: AR?'اختبار أسبوعي 1':'Weekly Quiz 1', dueDate:'2026-03-07', score: Math.min(100, score+5), maxMarks:100, weight:1 },
+      { name: AR?'اختبار شهري - مارس':'Monthly Test', dueDate:'2026-04-01', score: Math.max(50, score-3), maxMarks:100, weight:2 }
+    ];
+
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+    calcItems.forEach(it => {
+      totalWeightedScore += (it.score * it.weight);
+      totalWeight += it.weight;
+    });
+    const finalCalc = totalWeight > 0 ? (totalWeightedScore / totalWeight).toFixed(1) : score;
+
+    content = `
+    <div class="flex between center" style="margin-bottom:1rem;border-bottom:1.5px solid var(--line);padding-bottom:.75rem">
+      <div>
+        <p class="eyebrow" style="margin:0">${TR('Calculation Engine & Breakdown','تفاصيل درجات المادة وطريقة حساب النسبة المئوية')}</p>
+        <h2 style="margin:0"><span aria-hidden="true">${SUBJECT_ICON[su]||'📘'}</span> ${subjLabel} <span class="tag gold" style="font-size:1rem">${score}%</span></h2>
+      </div>
+      <button class="iconbtn" data-close-modal>✕</button>
+    </div>
+
+    <!-- Formula & Calculation Rule Card -->
+    <div class="card mb" style="background:var(--sand,#FAF7F0);border-inline-start:5px solid var(--ischool-gold);padding:1.1rem 1.25rem">
+      <h3 style="margin:0 0 .5rem;color:#854D0E">🧮 ${TR('How your percentage is calculated','كيف يُحسب مجموعك ونسبتك المئوية؟')}</h3>
+      <p class="small" style="line-height:1.6;margin:0 0 .75rem;color:var(--ink)">
+        ${TR(
+          'Your final percentage is calculated by weighting each assessment according to its relative importance (weight multiplier). The total weighted points are summed up and divided by the sum of all weights.',
+          'تُحسب النسبة المئوية النهائية من خلال ضرب درجة كل تقييم في وزنه النسبي المعتمد، ثم قسمة إجمالي النقاط الموزونة على مجموع الأوزان وفق المعادلات المعتمدة.'
+        )}
+      </p>
+      <div style="background:#FFF;border:1.5px solid var(--line);border-radius:12px;padding:.85rem 1rem;font-family:monospace;font-size:.9rem;text-align:center;color:var(--ischool-blue);font-weight:700">
+        النسبة المئوية = ( مجموع (الدرجة × الوزن النسبي) ) ÷ ( إجمالي الأوزان )
+      </div>
+    </div>
+
+    <!-- Step by Step Calculation Breakdown -->
+    <h3 style="margin:.8rem 0 .5rem;font-size:1.05rem">📋 ${TR('Assessments & Weights Breakdown','كشف التقييمات والأوزان الموزونة للمادة')}</h3>
+    <div class="tbl-scroll mb">
+      <table>
+        <thead>
+          <tr>
+            <th>${TR('Assessment Name','التقييم / الامتحان')}</th>
+            <th>${TR('Due Date','تاريخ الاستحقاق')}</th>
+            <th>${TR('Score (/100)','الدرجة المرصودة (/100)')}</th>
+            <th>${TR('Weight','الوزن النسبي')}</th>
+            <th>${TR('Weighted Value','الدرجة الموزونة')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${calcItems.map(it => `
+            <tr>
+              <th scope="row" style="position:static;font-weight:700">${esc(it.name)}</th>
+              <td>${it.dueDate}</td>
+              <td style="font-weight:800;color:var(--teal-700)">${it.score} / ${it.maxMarks}</td>
+              <td>× ${it.weight}</td>
+              <td style="font-weight:900;color:var(--ischool-blue)">${(it.score * it.weight).toFixed(1)}</td>
+            </tr>
+          `).join('')}
+          <tr style="background:var(--paper);font-weight:900;border-top:2px solid var(--line)">
+            <th scope="row" style="position:static">${TR('Total / Final Average','المجموع الإجمالي والمعدل')}</th>
+            <td>—</td>
+            <td style="color:var(--ok-700)">—</td>
+            <td><strong>${totalWeight.toFixed(1)}</strong></td>
+            <td style="color:var(--ischool-gold);font-size:1.1rem"><strong>${totalWeightedScore.toFixed(1)} ÷ ${totalWeight.toFixed(1)} = ${finalCalc}%</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="border-inline-start:5px solid var(--ok-700);padding:.9rem 1.1rem">
+      <p style="margin:0 0 .3rem;font-size:.9rem"><strong>💡 ${TR('Pedagogical Guidance','ملاحظة معلم المادة وتوصية التطوير')}</strong></p>
+      <p class="small muted" style="margin:0">${score>=85 ? TR('Outstanding performance! Keep up the brilliant work in this subject.','أداء راقٍ ومتميز! استمر على هذا المستوى في التطبيقات القادمة.') : score>=65 ? TR('Good progress! Extra practice on unit exercises will push your grade to excellence.','مستوى جيد واستقرار ملحوظ! بعض المراجعة الإضافية ستنقلك لمستوى التفوق.') : TR('You can do better! Focus on fundamental concepts and ask your teacher for guidance.','يمكنك تحقيق نتيجة أفضل! ركّز على المفاهيم الأساسية واطلب الدعم الإثرائي.')}</p>
+    </div>
+    `;
+  } else if (d.type === 'student'){
     const st = d.student;
     const res = calculateDynamicStudentAverage(st, S.dateRange);
     content = `
@@ -7848,7 +9187,7 @@ function drilldownModalOverlay(){
 function render(){
   applySettings();
   const app=el('app');
-  app.innerHTML=viewFor()+(S._help?helpDialog():'')+coachOverlay()+confirmOverlay()+justifyOverlay()+netNotice()+sysUpdateOverlay()+videoOverlay()+announceOverlay()+drilldownModalOverlay();
+  app.innerHTML=viewFor()+(S._help?helpDialog():'')+coachOverlay()+confirmOverlay()+justifyOverlay()+netNotice()+sysUpdateOverlay()+videoOverlay()+announceOverlay()+drilldownModalOverlay()+a11yPanel();
   // refresh a11y panel expanded state on the trigger
   const trig=document.querySelector('[data-open-a11y]'); if(trig) trig.setAttribute('aria-expanded', String(S.a11yOpen));
   if(S.videoOpen){const m=el('videobox'); if(m){const b=m.querySelector('button'); b&&b.focus();}}
@@ -7889,10 +9228,55 @@ document.addEventListener('click', (e)=>{
     return;
   }
 
-  const el_ = e.target.closest('button, a, input, select, [data-go], [data-login], [data-view], [data-drill], [data-drill-into], [data-filter-daterange], [data-admin-analytics-tab], [data-open-anomalies], [data-close-modal], [data-open-student-modal], [data-drilldown-metric], [data-toggle-phase2], [data-set], [data-toggle], [data-att], [data-crumb], [data-open-a11y], [data-close-a11y], [data-help], [data-close-help], [data-student], [data-mark-all], [data-start-exam], [data-answer], [data-exam-nav], [data-exam-review], [data-exam-goto], [data-exam-submit], [data-extend-time], [data-reset-exam], [data-speak], [data-child], [data-onboard-next], [data-onboard-back], [data-onboard-skip], [data-replay-tour], [data-subject-open], [data-share-lesson], [data-subject-tab], [data-assess-mode], [data-admin-role], [data-submit-attendance], [data-submit-grades], [data-confirm-yes], [data-confirm-no], [data-leave-anyway], [data-grade-photo], [data-practice-exam], [data-settings], [data-settings-done], [data-goto-view], [data-reset-a11y], [data-pd], [data-send-feedback], [data-coord-conn], [data-coord-open], [data-coord-mode], [data-coord-choose], [data-csv-open], [data-csv-back], [data-csv-download], [data-csv-sample], [data-csv-reset], [data-csv-confirm], [data-coord-save], [data-coord-cancel], [data-coord-sync], [data-parent-verify], [data-parent-read], [data-parent-dispute], [data-examfield], [data-announce-open], [data-announce-cancel], [data-announce-post], [data-save-spine], [data-save-full], [data-tpd-open], [data-tpd-back], [data-tpd-complete], [data-tpd-community], [data-modal-backdrop]') || e.target;
+  const el_ = e.target.closest('button, a, input, select, [data-go], [data-login], [data-view], [data-drill], [data-drill-into], [data-filter-daterange], [data-admin-analytics-tab], [data-open-anomalies], [data-close-modal], [data-open-student-modal], [data-open-subject-calc], [data-bi-quiz-filter], [data-bi-session-filter], [data-open-a11y], [data-close-a11y], [data-set], [data-toggle], [data-drilldown-metric], [data-toggle-phase2], [data-crumb], [data-help], [data-close-help], [data-student], [data-mark-all], [data-start-exam], [data-answer], [data-exam-nav], [data-exam-review], [data-exam-goto], [data-exam-submit], [data-extend-time], [data-reset-exam], [data-speak], [data-child], [data-onboard-next], [data-onboard-back], [data-onboard-skip], [data-replay-tour], [data-subject-open], [data-share-lesson], [data-subject-tab], [data-assess-mode], [data-admin-role], [data-submit-attendance], [data-submit-grades], [data-confirm-yes], [data-confirm-no], [data-leave-anyway], [data-grade-photo], [data-practice-exam], [data-settings], [data-settings-done], [data-goto-view], [data-reset-a11y], [data-pd], [data-send-feedback], [data-coord-conn], [data-coord-open], [data-coord-mode], [data-coord-choose], [data-csv-open], [data-csv-back], [data-csv-download], [data-csv-sample], [data-csv-reset], [data-csv-confirm], [data-coord-save], [data-coord-cancel], [data-coord-sync], [data-parent-verify], [data-parent-read], [data-parent-dispute], [data-examfield], [data-announce-open], [data-announce-cancel], [data-announce-post], [data-save-spine], [data-save-full], [data-tpd-open], [data-tpd-back], [data-tpd-complete], [data-tpd-community], [data-modal-backdrop]') || e.target;
   
   if (!el_) return;
   const d = el_.dataset || {};
+
+  if (d.openA11y != null) {
+    S.a11yOpen = !S.a11yOpen;
+    render();
+    return;
+  }
+  if (d.closeA11y != null) {
+    S.a11yOpen = false;
+    render();
+    return;
+  }
+  if (d.set != null) {
+    const name = d.set, val = d.val;
+    if (name === 'textSize') S.settings.textSize = Number(val);
+    else if (name === 'speed') S.settings.speed = val;
+    else if (name === 'lang') S.settings.lang = val;
+    saveA11y();
+    applySettings();
+    render();
+    return;
+  }
+  if (d.toggle != null) {
+    const name = d.toggle;
+    S.settings[name] = !S.settings[name];
+    saveA11y();
+    applySettings();
+    render();
+    return;
+  }
+
+  if (d.openSubjectCalc != null) {
+    S.activeDrilldown = { type: 'subject_calc', subject: d.openSubjectCalc };
+    render();
+    return;
+  }
+  if (d.biQuizFilter != null) {
+    S.biQuizFilter = d.biQuizFilter;
+    render();
+    return;
+  }
+  if (d.biSessionFilter != null) {
+    S.biSessionFilter = d.biSessionFilter;
+    render();
+    return;
+  }
 
   /* Primary Ministerial & Custom Actions at Top Priority */
   
@@ -7910,14 +9294,22 @@ document.addEventListener('click', (e)=>{
       sysadmin: 'control.html',
       leader: 'ministry.html'
     };
-    if (pageMap[d.go] && !window.location.pathname.endsWith(pageMap[d.go])) {
-      window.location.href = pageMap[d.go];
-      return;
+    const targetFile = pageMap[d.go];
+    const currentPath = decodeURIComponent(window.location.pathname || '').replace(/\\/g, '/');
+    const isCurrentFile = targetFile && (currentPath.toLowerCase().endsWith('/' + targetFile.toLowerCase()) || currentPath.toLowerCase().endsWith(targetFile.toLowerCase()));
+
+    if (targetFile && !isCurrentFile && window.location.protocol !== 'file:') {
+      try {
+        window.location.href = targetFile;
+        return;
+      } catch (err) {
+        console.warn('Local navigation fallback', err);
+      }
     }
     S.route = d.go === 'home' ? 'login' : d.go;
     S.auth = null;
     if (d.go === 'teacher') S.teacherView = 'assessments';
-    else if (d.go === 'admin') S.adminPath = ['min'];
+    else if (d.go === 'admin' || d.go === 'leader') S.adminPath = ['min'];
     render();
     focusMain();
     return;
@@ -7931,6 +9323,14 @@ document.addEventListener('click', (e)=>{
     render();
     focusMain();
     toast(TR('Signed in to ' + d.auth + ' portal', 'تم تسجيل الدخول إلى بوابة ' + d.auth));
+    return;
+  }
+
+  if (d.switchClass != null) {
+    S.teacherClassId = d.switchClass;
+    render();
+    const cl = NODE[d.switchClass];
+    if (cl) toast((S.settings.lang === 'ar' ? 'تم التبديل إلى ' : 'Switched to ') + nodeName(cl));
     return;
   }
   
@@ -7970,8 +9370,8 @@ document.addEventListener('click', (e)=>{
       csvDownload(rows, 'manassa-qa-flags.csv');
     } else {
       const m = metricsFor(node);
-      const rows = [[TR('Scope','النطاق'), TR('Level','المستوى'), TR('Students','الطلاب'), TR('Attendance %','الحضور %'), TR('Assessment %','التقييم %'), TR('Teacher attendance %','حضور المعلّمين %'), TR('Dropout risk %','الإنذار المبكر %'), TR('QA flags','التنبيهات')],
-        [nodeName(node), levelLabel(node.level), cohortOf(node), m.attendance, m.mastery, m.teacherAttendance, m.dropoutRiskPct, flagSummary(node).total]];
+      const rows = [[TR('Scope','النطاق'), TR('Level','المستوى'), TR('Students','الطلاب'), TR('Attendance %','الحضور %'), TR('Assessment %','التقييم %'), TR('Dropout risk %','الإنذار المبكر %'), TR('QA flags','التنبيهات')],
+        [nodeName(node), levelLabel(node.level), cohortOf(node), m.attendance, m.mastery, m.dropoutRiskPct, flagSummary(node).total]];
       csvDownload(rows, 'manassa-indicators.csv');
     }
     toast(TR('Exported CSV','تم تصدير الملف'));
@@ -8184,6 +9584,8 @@ document.addEventListener('click', (e)=>{
     else if(v==='no'){ S.parentVerified='locked'; render(); focusMain(); announce(TR('Paused. Please contact your school to check the record.','تمّ الإيقاف. يرجى التواصل مع المدرسة لمراجعة السجلّ.'), true); }
     else { S.parentVerified=false; render(); focusMain(); }
     return; }
+  if(d.pilotTab){ S.pilotTab = d.pilotTab; render(); focusMain(); return; }
+  if(d.printReport!=null){ window.print(); return; }
   if(d.assessMode){ S.assessMode=d.assessMode; render(); focusMain(); return; }
   if(d.parentRead){
     S.parentReadChosen=true;
